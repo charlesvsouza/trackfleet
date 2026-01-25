@@ -1,0 +1,20 @@
+# Visual Studio
+.vs/
+
+# .NET build
+bin/
+obj/
+
+# IDEs
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Docker
+**/docker-data/
+
+# Configurações locais (se existirem)
+appsettings.Development.json
+appsettings.Backup.json
