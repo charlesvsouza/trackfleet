@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: trackfleet-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: trackfleet
+      POSTGRES_USER: trackfleet
+      POSTGRES_PASSWORD: trackfleet123
+    ports:
+      - "5432:5432"
+    volumes:
+      - trackfleet_pgdata:/var/lib/postgresql/data
+
+volumes:
+  trackfleet_pgdata:
