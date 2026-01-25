@@ -6,23 +6,22 @@ public static class DbInitializer
 {
     public static void Seed(TrackFleetDbContext context)
     {
-        context.Database.EnsureCreated();
+        if (context.Tenants.Any())
+            return;
 
-        if (!context.Tenants.Any())
-        {
-            var tenant = new Tenant("Empresa Demo");
-            context.Tenants.Add(tenant);
+        var tenant = new Tenant("TrackFleet Default");
 
-            var adminUser = new User(
-                tenant.Id,
-                "admin@trackfleet.com",
-                "Administrador",
-                "Admin"
-            );
+        var admin = new User(
+            tenant.Id,
+            "admin@trackfleet.com",
+            "Administrador",
+            "Admin"
+        );
 
-            context.Users.Add(adminUser);
+        admin.SetPassword("123456");
 
-            context.SaveChanges();
-        }
+        context.Tenants.Add(tenant);
+        context.Users.Add(admin);
+        context.SaveChanges();
     }
 }

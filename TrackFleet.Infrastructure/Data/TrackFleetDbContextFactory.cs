@@ -1,23 +1,27 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
-using TrackFleet.Infrastructure.Data;
+using Microsoft.Extensions.Configuration;
+using System.IO;
 
-namespace TrackFleet.Infrastructure.Data;
-
-/// <summary>
-/// Factory usada pelo EF Core em tempo de design (migrations).
-/// </summary>
-public class TrackFleetDbContextFactory
-    : IDesignTimeDbContextFactory<TrackFleetDbContext>
+namespace TrackFleet.Infrastructure.Data
 {
-    public TrackFleetDbContext CreateDbContext(string[] args)
+    public class TrackFleetDbContextFactory
+        : IDesignTimeDbContextFactory<TrackFleetDbContext>
     {
-        var optionsBuilder = new DbContextOptionsBuilder<TrackFleetDbContext>();
+        public TrackFleetDbContext CreateDbContext(string[] args)
+        {
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(Path.Combine(Directory.GetCurrentDirectory(), "../TrackFleet.Api"))
+                .AddJsonFile("appsettings.json", optional: false)
+                .Build();
 
-        optionsBuilder.UseNpgsql(
-            "Host=localhost;Port=5432;Database=trackfleet;Username=trackfleet;Password=trackfleet123"
-        );
+            var optionsBuilder = new DbContextOptionsBuilder<TrackFleetDbContext>();
 
-        return new TrackFleetDbContext(optionsBuilder.Options);
+            optionsBuilder.UseNpgsql(
+                configuration.GetConnectionString("Postgres")
+            );
+
+            return new TrackFleetDbContext(optionsBuilder.Options);
+        }
     }
 }

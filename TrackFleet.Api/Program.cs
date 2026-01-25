@@ -5,6 +5,7 @@ using Microsoft.OpenApi;
 using Microsoft.OpenApi.Models;
 using System.Text;
 using TrackFleet.Api.Hubs;
+using TrackFleet.Api.Maps;
 using TrackFleet.Api.Security;
 using TrackFleet.Infrastructure.Data;
 
@@ -14,6 +15,10 @@ var builder = WebApplication.CreateBuilder(args);
 // SERVICES
 // =======================
 
+builder.Services.Configure<GoogleMapsSettings>(
+    builder.Configuration.GetSection("GoogleMaps")
+);
+
 builder.Services.AddControllers();
 
 // DbContext
@@ -22,6 +27,7 @@ builder.Services.AddDbContext<TrackFleetDbContext>(options =>
         builder.Configuration.GetConnectionString("Postgres")
     )
 );
+
 
 // SignalR
 builder.Services.AddSignalR();
@@ -107,6 +113,12 @@ builder.Services.AddSwaggerGen(options =>
 // =======================
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<TrackFleetDbContext>();
+    DbInitializer.Seed(db);
+}
 
 // =======================
 // PIPELINE

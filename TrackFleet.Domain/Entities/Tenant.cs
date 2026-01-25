@@ -3,7 +3,7 @@
 public class Tenant
 {
     public Guid Id { get; private set; }
-    public string Name { get; private set; }
+    public string Name { get; private set; } = null!;
     public bool IsActive { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
 
@@ -15,10 +15,5 @@ public class Tenant
         Name = name;
         IsActive = true;
         CreatedAtUtc = DateTime.UtcNow;
-    }
-
-    public void Deactivate()
-    {
-        IsActive = false;
     }
 }

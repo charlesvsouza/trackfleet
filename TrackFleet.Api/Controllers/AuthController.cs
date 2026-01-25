@@ -1,10 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using TrackFleet.Api.Dtos;
 using TrackFleet.Api.Security;
 using TrackFleet.Infrastructure.Data;
-
-namespace TrackFleet.Api.Controllers;
+using Microsoft.EntityFrameworkCore;
 
 [ApiController]
 [Route("api/auth")]
@@ -22,7 +20,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login(LoginRequestDto dto)
+    public async Task<IActionResult> Login([FromBody] LoginRequestDto dto)
     {
         var user = await _context.Users
             .FirstOrDefaultAsync(u =>
