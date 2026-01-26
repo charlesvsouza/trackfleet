@@ -1,8 +1,7 @@
-﻿namespace TrackFleet.Api.Dtos;
+﻿namespace TrackFleet.Api.DTOs.Vehicles;
 
-public record VehicleResponseDto(
+public record VehicleResponse(
     Guid Id,
-    Guid TenantId,
     string Plate,
     string? Description,
     double Latitude,

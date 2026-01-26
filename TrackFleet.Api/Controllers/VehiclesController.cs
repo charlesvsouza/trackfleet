@@ -1,44 +1,46 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using TrackFleet.Api.Dtos;
-using TrackFleet.Api.Extensions;
-using TrackFleet.Api.Hubs;
+using TrackFleet.Api.DTOs.Vehicles;
 using TrackFleet.Domain.Entities;
+using TrackFleet.Domain.Security;
 using TrackFleet.Infrastructure.Data;
 
 namespace TrackFleet.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-[Authorize]
+[Route("api/vehicles")]
+[Authorize(Policy = "AdminOnly")]
 public class VehiclesController : ControllerBase
 {
-    private readonly TrackFleetDbContext _context;
-    private readonly IHubContext<TrackingHub> _hub;
+    private readonly TrackFleetDbContext _db;
+    private readonly ITenantProvider _tenantProvider;
 
     public VehiclesController(
-        TrackFleetDbContext context,
-        IHubContext<TrackingHub> hub)
+        TrackFleetDbContext db,
+        ITenantProvider tenantProvider)
     {
-        _context = context;
-        _hub = hub;
+        _db = db;
+        _tenantProvider = tenantProvider;
     }
 
+    // =======================
+    // CREATE
+    // =======================
     [HttpPost]
-    public async Task<IActionResult> Create(VehicleCreateDto dto)
+    public async Task<ActionResult<VehicleResponse>> Create(
+        [FromBody] CreateVehicleRequest request)
     {
-        var tenantId = User.GetTenantId();
+        var tenantId = _tenantProvider.GetTenantId();
 
         var vehicle = Vehicle.Create(
             tenantId,
-            dto.Plate,
-            dto.Description
+            request.Plate,
+            request.Description
         );
 
-        _context.Vehicles.Add(vehicle);
-        await _context.SaveChangesAsync();
+        _db.Vehicles.Add(vehicle);
+        await _db.SaveChangesAsync();
 
         return CreatedAtAction(
             nameof(GetById),
@@ -47,97 +49,59 @@ public class VehiclesController : ControllerBase
         );
     }
 
-    [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetById(Guid id)
+    // =======================
+    // READ (LIST)
+    // =======================
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<VehicleResponse>>> GetAll()
     {
-        var tenantId = User.GetTenantId();
-
-        var vehicle = await _context.Vehicles
+        var vehicles = await _db.Vehicles
             .AsNoTracking()
-            .FirstOrDefaultAsync(v =>
-                v.Id == id &&
-                v.TenantId == tenantId &&
-                v.IsActive);
+            .ToListAsync();
 
-        if (vehicle is null)
-            return NotFound();
-
-        return Ok(Map(vehicle));
+        return vehicles.Select(Map).ToList();
     }
 
-    [HttpPut("{id:guid}/location")]
-    public async Task<IActionResult> UpdateLocation(
-        Guid id,
-        VehicleLocationUpdateDto dto)
+    // =======================
+    // READ (BY ID)
+    // =======================
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<VehicleResponse>> GetById(Guid id)
     {
-        var tenantId = User.GetTenantId();
+        var vehicle = await _db.Vehicles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(v => v.Id == id);
 
-        var vehicle = await _context.Vehicles
-            .FirstOrDefaultAsync(v =>
-                v.Id == id &&
-                v.TenantId == tenantId &&
-                v.IsActive);
-
-        if (vehicle is null)
+        if (vehicle == null)
             return NotFound();
 
-        vehicle.UpdateLocation(dto.Latitude, dto.Longitude);
-
-        var rules = _context.AlertRules
-    .Where(r =>
-        r.TenantId == tenantId &&
-        r.IsActive &&
-        r.AppliesTo(vehicle.Id))
-    .ToList();
-
-        foreach (var rule in rules)
-        {
-            if (rule.Type == AlertType.SpeedExceeded && rule.Threshold.HasValue)
-            {
-                // Simples: velocidade = deslocamento fictício
-                if (Math.Abs(dto.Latitude) + Math.Abs(dto.Longitude) > rule.Threshold)
-                {
-                    var alert = new AlertEvent(
-                        tenantId,
-                        vehicle.Id,
-                        rule.Type,
-                        "Velocidade excedida."
-                    );
-
-                    _context.AlertEvents.Add(alert);
-
-                    await _hub.Clients
-                        .Group(tenantId.ToString())
-                        .SendAsync("alertTriggered", alert);
-                }
-            }
-        }
-
-        var history = VehicleLocation.Create(
-            vehicle.Id,
-            tenantId,
-            dto.Latitude,
-            dto.Longitude
-        );
-
-        _context.VehicleLocations.Add(history);
-
-        await _context.SaveChangesAsync();
-
-        var response = Map(vehicle);
-
-        await _hub.Clients
-            .Group(tenantId.ToString())
-            .SendAsync(TrackingHub.VehicleLocationUpdatedEvent, response);
-
-        return Ok(response);
+        return Map(vehicle);
     }
 
-    private static VehicleResponseDto Map(Vehicle v)
+    // =======================
+    // DELETE (SOFT)
+    // =======================
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Deactivate(Guid id)
     {
-        return new VehicleResponseDto(
+        var vehicle = await _db.Vehicles
+            .FirstOrDefaultAsync(v => v.Id == id);
+
+        if (vehicle == null)
+            return NotFound();
+
+        vehicle.Deactivate();
+        await _db.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    // =======================
+    // MAPPER
+    // =======================
+    private static VehicleResponse Map(Vehicle v) =>
+        new(
             v.Id,
-            v.TenantId,
             v.Plate,
             v.Description,
             v.Latitude,
@@ -145,5 +109,4 @@ public class VehiclesController : ControllerBase
             v.LastUpdateUtc,
             v.IsActive
         );
-    }
 }

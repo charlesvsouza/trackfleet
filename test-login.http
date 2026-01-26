@@ -1,0 +1,9 @@
+test-login.http### LOGIN TRACKFLEET
+POST http://localhost:5249/api/auth/login
+Content-Type: application/json
+
+{
+  "tenantId": "COLE_AQUI_O_TENANT_ID",
+  "email": "admin@trackfleet.com",
+  "password": "123456"
+}

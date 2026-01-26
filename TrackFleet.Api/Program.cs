@@ -1,12 +1,16 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using TrackFleet.Api.Security;
+using TrackFleet.Domain.Security;
+
 using TrackFleet.Api.Hubs;
 using TrackFleet.Api.Maps;
-using TrackFleet.Api.Security;
+
 using TrackFleet.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,11 +19,22 @@ var builder = WebApplication.CreateBuilder(args);
 // SERVICES
 // =======================
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ITenantProvider, JwtTenantProvider>();
+
 builder.Services.Configure<GoogleMapsSettings>(
     builder.Configuration.GetSection("GoogleMaps")
 );
 
-builder.Services.AddControllers();
+// Controllers com AUTH GLOBAL
+builder.Services.AddControllers(options =>
+{
+    var policy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+
+    options.Filters.Add(new AuthorizeFilter(policy));
+});
 
 // DbContext
 builder.Services.AddDbContext<TrackFleetDbContext>(options =>
@@ -27,7 +42,6 @@ builder.Services.AddDbContext<TrackFleetDbContext>(options =>
         builder.Configuration.GetConnectionString("Postgres")
     )
 );
-
 
 // SignalR
 builder.Services.AddSignalR();
@@ -55,17 +69,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-
             ValidIssuer = jwt.Issuer,
             ValidAudience = jwt.Audience,
-
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(jwt.SecretKey)
             )
         };
     });
 
-builder.Services.AddAuthorization();
+// POLICIES
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", p => p.RequireRole("Admin"));
+    options.AddPolicy("UserOnly", p => p.RequireRole("User"));
+});
 
 // =======================
 // SWAGGER
@@ -77,19 +94,16 @@ builder.Services.AddSwaggerGen(options =>
     options.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "TrackFleet API",
-        Version = "v1",
-        Description = "API de rastreamento de frota com alertas inteligentes"
+        Version = "v1"
     });
 
-    // JWT Bearer
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
         Type = SecuritySchemeType.Http,
         Scheme = "bearer",
         BearerFormat = "JWT",
-        In = ParameterLocation.Header,
-        Description = "Informe o token JWT no formato: Bearer {seu_token}"
+        In = ParameterLocation.Header
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -114,10 +128,22 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+// Seed seguro: loga falhas em vez de derrubar a aplicação
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<TrackFleetDbContext>();
-    DbInitializer.Seed(db);
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<TrackFleetDbContext>();
+        // opcional: aplicar migrações automaticamente
+        // db.Database.Migrate();
+        DbInitializer.Seed(db);
+        logger.LogInformation("Database seed completed.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Falha ao inicializar/seed do banco de dados. Verifique se o Postgres está acessível e a string de conexão.");
+    }
 }
 
 // =======================
@@ -127,11 +153,7 @@ using (var scope = app.Services.CreateScope())
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI(options =>
-    {
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "TrackFleet API v1");
-        options.RoutePrefix = "swagger";
-    });
+    app.UseSwaggerUI();
 }
 
 app.UseAuthentication();

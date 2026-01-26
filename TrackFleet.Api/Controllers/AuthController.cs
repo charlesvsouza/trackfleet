@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using TrackFleet.Api.Dtos;
 using TrackFleet.Api.Security;
 using TrackFleet.Infrastructure.Data;
@@ -19,9 +20,13 @@ public class AuthController : ControllerBase
         _jwt = jwt;
     }
 
+    [AllowAnonymous]
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequestDto dto)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
         var user = await _context.Users
             .FirstOrDefaultAsync(u =>
                 u.Email == dto.Email &&

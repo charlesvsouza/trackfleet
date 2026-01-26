@@ -1,8 +1,7 @@
+version: '3.8'
 services:
   postgres:
-    image: postgres:16
-    container_name: trackfleet-postgres
-    restart: always
+    image: postgres:15
     environment:
       POSTGRES_DB: trackfleet
       POSTGRES_USER: trackfleet
@@ -10,7 +9,6 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - trackfleet_pgdata:/var/lib/postgresql/data
-
+      - pgdata:/var/lib/postgresql/data
 volumes:
-  trackfleet_pgdata:
+  pgdata:
