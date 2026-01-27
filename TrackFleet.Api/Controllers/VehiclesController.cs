@@ -107,7 +107,7 @@ public class VehiclesController : ControllerBase
 
     {
         var vehicle = await _db.Vehicles
-            .FirstOrDefaultAsync(v => v.Id == id);
+    .FirstOrDefaultAsync(v => v.Id == id && v.IsActive);
 
         if (vehicle == null)
             return NotFound();
@@ -116,6 +116,7 @@ public class VehiclesController : ControllerBase
 
         await _db.SaveChangesAsync();
         return NoContent();
+
     }
 
     // =======================

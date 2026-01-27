@@ -1,18 +1,16 @@
-import api from './axios';
+import { http } from "./http";
 
-export async function login(
-  tenantId: string,
-  email: string,
-  password: string
-) {
-  const response = await api.post('/api/auth/login', {
-    tenantId,
-    email,
-    password
-  });
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
 
-  return response.data as {
-    token: string;
-    expiresAtUtc: string;
-  };
+export interface LoginResponse {
+  token: string;
+  expiresAtUtc: string;
+}
+
+export async function loginApi(data: LoginRequest): Promise<LoginResponse> {
+  const response = await http.post<LoginResponse>("/auth/login", data);
+  return response.data;
 }

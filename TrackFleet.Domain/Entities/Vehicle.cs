@@ -11,10 +11,9 @@ public class Vehicle
     public DateTime LastUpdateUtc { get; private set; }
     public bool IsActive { get; private set; }
 
-    // Construtor para EF Core
+    // EF Core
     private Vehicle() { }
 
-    // Construtor real do domínio
     private Vehicle(
         Guid id,
         Guid tenantId,
@@ -32,15 +31,9 @@ public class Vehicle
         IsActive = true;
     }
 
-    // Factory Method
-    public static Vehicle Create(
-        Guid tenantId,
-        string plate,
-        string? description)
+    // Factory
+    public static Vehicle Create(Guid tenantId, string plate, string? description)
     {
-        if (string.IsNullOrWhiteSpace(plate))
-            throw new ArgumentException("Plate is required.", nameof(plate));
-
         return new Vehicle(
             Guid.NewGuid(),
             tenantId,
@@ -49,13 +42,12 @@ public class Vehicle
         );
     }
 
-    // =======================
-    // DOMAIN BEHAVIOR
-    // =======================
+    // ===== SEMANTIC UPDATES =====
 
     public void SetDescription(string? description)
     {
         Description = description;
+        LastUpdateUtc = DateTime.UtcNow;
     }
 
     public void UpdateLocation(double latitude, double longitude)
@@ -68,5 +60,6 @@ public class Vehicle
     public void Deactivate()
     {
         IsActive = false;
+        LastUpdateUtc = DateTime.UtcNow;
     }
 }
