@@ -33,14 +33,29 @@ public class Vehicle
     }
 
     // Factory Method
-    public static Vehicle Create(Guid tenantId, string plate, string? description)
+    public static Vehicle Create(
+        Guid tenantId,
+        string plate,
+        string? description)
     {
+        if (string.IsNullOrWhiteSpace(plate))
+            throw new ArgumentException("Plate is required.", nameof(plate));
+
         return new Vehicle(
             Guid.NewGuid(),
             tenantId,
             plate,
             description
         );
+    }
+
+    // =======================
+    // DOMAIN BEHAVIOR
+    // =======================
+
+    public void SetDescription(string? description)
+    {
+        Description = description;
     }
 
     public void UpdateLocation(double latitude, double longitude)

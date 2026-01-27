@@ -1,4 +1,4 @@
-﻿namespace TrackFleet.Api.DTOs.Vehicles;
+﻿namespace TrackFleet.Api.DTOs;
 
 public record VehicleResponse(
     Guid Id,
