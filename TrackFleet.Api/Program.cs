@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+
 using TrackFleet.Api.Security;
 using TrackFleet.Domain.Security;
 
@@ -26,7 +27,26 @@ builder.Services.Configure<GoogleMapsSettings>(
     builder.Configuration.GetSection("GoogleMaps")
 );
 
-// Controllers com AUTH GLOBAL
+// =======================
+// CORS (NECESSARIO PARA SIGNALR NO BROWSER)
+// =======================
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("DevCors", policy =>
+    {
+        policy
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials()
+            .SetIsOriginAllowed(_ => true);
+    });
+});
+
+// =======================
+// CONTROLLERS (AUTH GLOBAL)
+// =======================
+
 builder.Services.AddControllers(options =>
 {
     var policy = new AuthorizationPolicyBuilder()
@@ -36,14 +56,20 @@ builder.Services.AddControllers(options =>
     options.Filters.Add(new AuthorizeFilter(policy));
 });
 
-// DbContext
+// =======================
+// DB CONTEXT
+// =======================
+
 builder.Services.AddDbContext<TrackFleetDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("Postgres")
     )
 );
 
-// SignalR
+// =======================
+// SIGNALR
+// =======================
+
 builder.Services.AddSignalR();
 
 // =======================
@@ -75,9 +101,30 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 Encoding.UTF8.GetBytes(jwt.SecretKey)
             )
         };
+
+        // Necessario para SignalR aceitar token via query string
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    path.StartsWithSegments("/tracking"))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            }
+        };
     });
 
-// POLICIES
+// =======================
+// AUTHORIZATION POLICIES
+// =======================
+
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminOnly", p => p.RequireRole("Admin"));
@@ -128,21 +175,27 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-// Seed seguro: loga falhas em vez de derrubar a aplicação
+// =======================
+// SEED (SEGURO)
+// =======================
+
 using (var scope = app.Services.CreateScope())
 {
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
     try
     {
         var db = scope.ServiceProvider.GetRequiredService<TrackFleetDbContext>();
-        // opcional: aplicar migrações automaticamente
-        // db.Database.Migrate();
+        // db.Database.Migrate(); // opcional
         DbInitializer.Seed(db);
         logger.LogInformation("Database seed completed.");
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Falha ao inicializar/seed do banco de dados. Verifique se o Postgres está acessível e a string de conexão.");
+        logger.LogError(
+            ex,
+            "Falha ao inicializar/seed do banco de dados. Verifique se o Postgres esta acessivel e a string de conexao."
+        );
     }
 }
 
@@ -156,6 +209,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseCors("DevCors");
 app.UseAuthentication();
 app.UseAuthorization();
 
