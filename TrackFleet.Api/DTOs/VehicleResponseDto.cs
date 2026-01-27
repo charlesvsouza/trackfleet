@@ -1,6 +1,6 @@
 ﻿namespace TrackFleet.Api.DTOs;
 
-public record VehicleResponse(
+public record VehicleResponseDto(
     Guid Id,
     string Plate,
     string? Description,
