@@ -10,7 +10,12 @@ export interface LoginResponse {
   expiresAtUtc: string;
 }
 
-export async function loginApi(data: LoginRequest): Promise<LoginResponse> {
-  const response = await http.post<LoginResponse>("/auth/login", data);
+export async function loginApi(
+  data: LoginRequest
+): Promise<LoginResponse> {
+  const response = await http.post<LoginResponse>(
+    "/auth/login",
+    data
+  );
   return response.data;
 }

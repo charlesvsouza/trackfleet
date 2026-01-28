@@ -66,7 +66,6 @@ public class VehiclesController : ControllerBase
     // READ (LIST)
     // =======================
     [HttpGet]
-    [HttpGet]
     public async Task<ActionResult<IEnumerable<VehicleResponseDto>>> GetAll()
     {
         var vehicles = await _db.Vehicles
@@ -77,11 +76,9 @@ public class VehiclesController : ControllerBase
         return vehicles.Select(Map).ToList();
     }
 
-
     // =======================
     // READ (BY ID)
     // =======================
-    [HttpGet("{id:guid}")]
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<VehicleResponseDto>> GetById(Guid id)
     {
@@ -94,6 +91,7 @@ public class VehiclesController : ControllerBase
 
         return Map(vehicle);
     }
+
 
 
     // =======================

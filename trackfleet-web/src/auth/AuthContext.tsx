@@ -32,11 +32,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const result = await loginApi({ email, password });
       localStorage.setItem("token", result.token);
       setToken(result.token);
-    } catch (err) {
+    } catch (err: any) {
       const message =
-        err instanceof Error ? err.message : "Erro ao fazer login";
+        err?.response?.data?.message ??
+        "Email ou senha inválidos";
       setError(message);
-      throw err;
     } finally {
       setIsLoading(false);
     }

@@ -1,17 +1,24 @@
 import axios from "axios";
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5249/api";
+const baseURL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5249/api";
 
 export const http = axios.create({
   baseURL,
 });
 
-// Interceptor para adicionar token em todas as requisições
+// Interceptor para adicionar token (exceto rotas públicas)
 http.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
-  if (token) {
+
+  const isPublicEndpoint =
+    config.url?.includes("/auth/login") ||
+    config.url?.includes("/auth/refresh");
+
+  if (token && !isPublicEndpoint) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
   return config;
 });
 
@@ -20,7 +27,6 @@ http.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expirado ou inválido
       localStorage.removeItem("token");
       window.location.href = "/login";
     }
