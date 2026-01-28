@@ -2,7 +2,7 @@ import {
   createContext,
   useContext,
   useState,
-  PropsWithChildren,
+  type PropsWithChildren,
 } from "react";
 import { loginApi } from "../api/auth.api";
 
@@ -11,26 +11,42 @@ type AuthContextType = {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
 };
 
-const AuthContext = createContext<AuthContextType>({} as AuthContextType);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [token, setToken] = useState<string | null>(
     localStorage.getItem("token")
   );
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  async function login(email: string, password: string) {
-    const result = await loginApi({ email, password });
+  const login = async (email: string, password: string) => {
+    setIsLoading(true);
+    setError(null);
 
-    localStorage.setItem("token", result.token);
-    setToken(result.token);
-  }
+    try {
+      const result = await loginApi({ email, password });
+      localStorage.setItem("token", result.token);
+      setToken(result.token);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Erro ao fazer login";
+      setError(message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  function logout() {
+  const logout = () => {
     localStorage.removeItem("token");
     setToken(null);
-  }
+    setError(null);
+  };
 
   return (
     <AuthContext.Provider
@@ -39,6 +55,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
         login,
         logout,
         isAuthenticated: !!token,
+        isLoading,
+        error,
       }}
     >
       {children}
@@ -47,5 +65,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
 }
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth deve ser usado dentro de um AuthProvider");
+  }
+  return context;
 }

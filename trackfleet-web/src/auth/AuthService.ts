@@ -1,7 +1,4 @@
-import { loginApi } from "../api/auth.api";
+// Este arquivo foi consolidado no AuthContext.tsx
+// Use: import { useAuth } from './AuthContext' em vez disso
+// Exemplo: const { login } = useAuth()
 
-export async function login(email: string, password: string) {
-  const result = await loginApi({ email, password });
-  localStorage.setItem("token", result.token);
-  return result;
-}
