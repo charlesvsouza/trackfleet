@@ -9,12 +9,17 @@ export default function Login() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    console.log("📝 Login.TSX - Formulário enviado!");
+    console.log("Email:", email);
     setError("");
 
     try {
+      console.log("🔐 Chamando login...");
       await login(email, password);
+      console.log("✅ Login bem-sucedido!");
       window.location.href = "/";
-    } catch {
+    } catch (err: any) {
+      console.error("❌ Erro:", err);
       setError("Credenciais inválidas");
     }
   }

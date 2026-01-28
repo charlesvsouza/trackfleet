@@ -1,12 +1,14 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import AppRoutes from "./routes/AppRoutes";
 import { AuthProvider } from "./auth/AuthContext";
-import LoginPage from "./pages/LoginPage";
+
+console.log("API BASE URL:", import.meta.env.VITE_API_BASE_URL);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <AuthProvider>
-      <LoginPage />
+      <AppRoutes />
     </AuthProvider>
   </React.StrictMode>
 );

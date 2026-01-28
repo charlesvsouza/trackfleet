@@ -17,6 +17,8 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("SUBMIT DISPARADO", email, password);
+
     setLocalError("");
 
     const normalizedEmail = email.trim();
@@ -42,6 +44,7 @@ export default function LoginPage() {
     }
 
     try {
+      console.log("CHAMANDO LOGIN CONTEXT");
       await login(normalizedEmail, password);
       navigate("/", { replace: true });
     } catch {

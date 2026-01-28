@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 
+console.log("✅ LoginPage.tsx carregado!");
+
 export default function LoginPage() {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
@@ -9,6 +11,9 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    console.log("📝 Formulário enviado!");
+    console.log("Email:", email);
+    console.log("Password:", password);
     setError(null);
 
     try {

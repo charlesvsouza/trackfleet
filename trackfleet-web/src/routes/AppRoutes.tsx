@@ -10,13 +10,13 @@ export default function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Se autenticado, redireciona login para home */}
         <Route
           path="/login"
-          element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />}
+          element={
+            isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />
+          }
         />
 
-        {/* Rota protegida */}
         <Route
           path="/"
           element={
@@ -26,11 +26,12 @@ export default function AppRoutes() {
           }
         />
 
-        {/* Redireciona rotas desconhecidas para login se não autenticado */}
         <Route
           path="*"
           element={
-            isAuthenticated ? <Navigate to="/" replace /> : <Navigate to="/login" replace />
+            isAuthenticated
+              ? <Navigate to="/" replace />
+              : <Navigate to="/login" replace />
           }
         />
       </Routes>

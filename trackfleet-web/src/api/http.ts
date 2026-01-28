@@ -26,10 +26,8 @@ http.interceptors.request.use((config) => {
 http.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem("token");
-      window.location.href = "/login";
-    }
+    console.error("AXIOS ERROR:", error.response?.status, error.config?.url);
     return Promise.reject(error);
   }
 );
+
