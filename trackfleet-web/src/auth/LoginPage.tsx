@@ -6,26 +6,27 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [localError, setLocalError] = useState("");
+
   const { login, isLoading, error } = useAuth();
   const navigate = useNavigate();
 
-  // Validação básica de email
-  const isValidEmail = (email: string) => {
+  const isValidEmail = (value: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    return emailRegex.test(value);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError("");
 
-    // Validação
-    if (!email.trim()) {
+    const normalizedEmail = email.trim();
+
+    if (!normalizedEmail) {
       setLocalError("Email é obrigatório");
       return;
     }
 
-    if (!isValidEmail(email)) {
+    if (!isValidEmail(normalizedEmail)) {
       setLocalError("Email inválido");
       return;
     }
@@ -41,10 +42,10 @@ export default function LoginPage() {
     }
 
     try {
-      await login(email, password);
+      await login(normalizedEmail, password);
       navigate("/", { replace: true });
     } catch {
-      // O erro já é tratado no AuthContext
+      // erro já tratado no AuthContext
     }
   };
 
@@ -60,8 +61,11 @@ export default function LoginPage() {
             type="email"
             placeholder="Email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
             disabled={isLoading}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setLocalError("");
+            }}
             style={{
               width: "100%",
               padding: "10px",
@@ -77,8 +81,11 @@ export default function LoginPage() {
             type="password"
             placeholder="Senha"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
             disabled={isLoading}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setLocalError("");
+            }}
             style={{
               width: "100%",
               padding: "10px",
@@ -92,6 +99,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={isLoading}
+          aria-busy={isLoading}
           style={{
             width: "100%",
             padding: "10px",
@@ -115,4 +123,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
