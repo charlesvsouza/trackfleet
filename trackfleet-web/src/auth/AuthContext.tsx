@@ -1,75 +1,58 @@
+// src/auth/AuthContext.tsx
+
 import {
   createContext,
   useContext,
   useEffect,
   useState,
-  type PropsWithChildren,
+  ReactNode
 } from "react";
 import { loginApi } from "../api/auth.api";
 
-type AuthContextType = {
-  token: string | null;
+interface AuthContextData {
+  isAuthenticated: boolean;
+  loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  error: string | null;
-};
+}
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextData>(
+  {} as AuthContextData
+);
 
-export function AuthProvider({ children }: PropsWithChildren) {
-  const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // 🔁 Sincroniza token ao carregar a aplicação
   useEffect(() => {
-    const storedToken = localStorage.getItem("token");
-    if (storedToken) {
-      setToken(storedToken);
+    const token = localStorage.getItem("token");
+
+    if (token) {
+      setIsAuthenticated(true);
     }
+
+    setLoading(false);
   }, []);
 
-  const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    setError(null);
+  async function login(email: string, password: string) {
+    const response = await loginApi({ email, password });
 
-    console.log("🔐 Tentando login com email:", email);
-    console.log("🔐 API Base URL:", import.meta.env.VITE_API_BASE_URL);
+    localStorage.setItem("token", response.token);
+    setIsAuthenticated(true);
+  }
 
-    try {
-      const result = await loginApi({ email, password });
-
-      localStorage.setItem("token", result.token);
-      setToken(result.token);
-
-      console.log("✅ Login bem-sucedido!");
-    } catch (err: any) {
-      const message =
-        err?.response?.data?.message ?? "Email ou senha inválidos";
-      setError(message);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const logout = () => {
+  function logout() {
     localStorage.removeItem("token");
-    setToken(null);
-    setError(null);
-  };
+    setIsAuthenticated(false);
+  }
 
   return (
     <AuthContext.Provider
       value={{
-        token,
+        isAuthenticated,
+        loading,
         login,
-        logout,
-        isAuthenticated: Boolean(token),
-        isLoading,
-        error,
+        logout
       }}
     >
       {children}
@@ -78,9 +61,5 @@ export function AuthProvider({ children }: PropsWithChildren) {
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth deve ser usado dentro de um AuthProvider");
-  }
-  return context;
+  return useContext(AuthContext);
 }

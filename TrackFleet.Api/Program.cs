@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -7,28 +7,38 @@ using Microsoft.OpenApi.Models;
 using System.Text;
 
 using TrackFleet.Api.Security;
-using TrackFleet.Domain.Security;
-
 using TrackFleet.Api.Hubs;
 using TrackFleet.Api.Maps;
+using TrackFleet.Api.Services;
 
+using TrackFleet.Domain.Security;
 using TrackFleet.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // =======================
-// SERVICES
+// CORE SERVICES
 // =======================
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantProvider, JwtTenantProvider>();
+
+// =======================
+// GPS / TRACKING
+// =======================
+
+// Simulador de GPS (memória)
+builder.Services.AddSingleton<VehiclePositionSimulator>();
+
+// Background tracking (SignalR push)
+builder.Services.AddHostedService<VehicleTrackingBackgroundService>();
 
 builder.Services.Configure<GoogleMapsSettings>(
     builder.Configuration.GetSection("GoogleMaps")
 );
 
 // =======================
-// CORS (NECESSARIO PARA SIGNALR NO BROWSER)
+// CORS (SignalR Browser)
 // =======================
 
 builder.Services.AddCors(options =>
@@ -57,7 +67,7 @@ builder.Services.AddControllers(options =>
 });
 
 // =======================
-// DB CONTEXT
+// DATABASE
 // =======================
 
 builder.Services.AddDbContext<TrackFleetDbContext>(options =>
@@ -102,7 +112,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             )
         };
 
-        // Necessario para SignalR aceitar token via query string
+        // Token via query string para SignalR
         options.Events = new JwtBearerEvents
         {
             OnMessageReceived = context =>
@@ -176,7 +186,7 @@ builder.Services.AddSwaggerGen(options =>
 var app = builder.Build();
 
 // =======================
-// SEED (SEGURO)
+// DATABASE SEED
 // =======================
 
 using (var scope = app.Services.CreateScope())
@@ -194,7 +204,7 @@ using (var scope = app.Services.CreateScope())
     {
         logger.LogError(
             ex,
-            "Falha ao inicializar/seed do banco de dados. Verifique se o Postgres esta acessivel e a string de conexao."
+            "Falha ao inicializar/seed do banco de dados."
         );
     }
 }

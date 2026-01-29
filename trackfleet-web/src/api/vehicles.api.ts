@@ -1,16 +1,16 @@
-import { http } from "./http";
+// src/api/vehicles.api.ts
 
-export interface VehicleDto {
-  id: string;
-  plate: string;
-  description?: string;
-  latitude: number;
-  longitude: number;
-  lastUpdateUtc: string;
-  isActive: boolean;
+import api from "./http";
+import { Vehicle, CreateVehicleDTO } from "@/features/vehicles/types";
+
+export async function getVehicles(): Promise<Vehicle[]> {
+  const { data } = await api.get("/vehicles");
+  return data;
 }
 
-export async function getVehicles(): Promise<VehicleDto[]> {
-  const response = await http.get<VehicleDto[]>("/vehicles");
-  return response.data;
+export async function createVehicle(
+  payload: CreateVehicleDTO
+): Promise<Vehicle> {
+  const { data } = await api.post("/vehicles", payload);
+  return data;
 }

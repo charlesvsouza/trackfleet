@@ -1,12 +1,33 @@
-import { Navigate } from "react-router-dom";
+// src/routes/PrivateRoute.tsx
+
+import { Navigate, useLocation } from "react-router-dom";
+import { ReactNode } from "react";
 import { useAuth } from "../auth/AuthContext";
 
-export function PrivateRoute({ children }: { children: JSX.Element }) {
-  const { isAuthenticated } = useAuth();
+interface PrivateRouteProps {
+  children: ReactNode;
+}
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+export function PrivateRoute({ children }: PrivateRouteProps) {
+  const { isAuthenticated, loading } = useAuth();
+  const location = useLocation();
+
+  // 🔄 Aguarda o AuthContext inicializar
+  if (loading) {
+    return <p style={{ padding: 20 }}>Verificando autenticação...</p>;
   }
 
-  return children;
+  // 🔒 Não autenticado → login
+  if (!isAuthenticated) {
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ from: location }}
+      />
+    );
+  }
+
+  // ✅ Autenticado → renderiza rota protegida
+  return <>{children}</>;
 }

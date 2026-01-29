@@ -5,17 +5,22 @@ export interface LoginRequest {
   password: string;
 }
 
+// src/api/auth.api.ts
+
+import api from "./http";
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
 export interface LoginResponse {
   token: string;
-  expiresAtUtc: string;
 }
 
 export async function loginApi(
-  data: LoginRequest
+  request: LoginRequest
 ): Promise<LoginResponse> {
-  const response = await http.post<LoginResponse>(
-    "/auth/login",
-    data
-  );
-  return response.data;
+  const { data } = await api.post("/auth/login", request);
+  return data;
 }
