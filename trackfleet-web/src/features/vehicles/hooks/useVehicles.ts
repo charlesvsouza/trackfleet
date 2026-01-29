@@ -1,17 +1,25 @@
-// src/features/vehicles/hooks/useVehicles.ts
-
 import { useEffect, useRef, useState } from "react";
 import { vehicleService } from "@/services/vehicleService";
 import { vehiclePositionService } from "@/services/vehiclePositionService";
 import { Vehicle, CreateVehicleDTO } from "../types";
 
+// 🔧 CONTROLE TÉCNICO
+const ENABLE_POLLING = true;
 const POLLING_INTERVAL_MS = 5000;
 
 export function useVehicles() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 🔒 ref estável para evitar recriação do intervalo
+  const vehiclesRef = useRef<Vehicle[]>([]);
   const pollingRef = useRef<number | null>(null);
+
+  // mantém ref sincronizada com o estado
+  useEffect(() => {
+    vehiclesRef.current = vehicles;
+  }, [vehicles]);
 
   async function loadVehicles() {
     try {
@@ -40,8 +48,12 @@ export function useVehicles() {
 
   async function pollPositions() {
     try {
+      const current = vehiclesRef.current;
+
+      if (current.length === 0) return;
+
       const updated = await Promise.all(
-        vehicles.map(async v => {
+        current.map(async v => {
           try {
             const position = await vehiclePositionService.getCurrent(v.id);
             return { ...v, position };
@@ -53,7 +65,7 @@ export function useVehicles() {
 
       setVehicles(updated);
     } catch {
-      // polling falhar não deve quebrar a UI
+      // polling não deve quebrar a UI
     }
   }
 
@@ -68,8 +80,10 @@ export function useVehicles() {
     loadVehicles();
   }, []);
 
-  // 🔁 polling seguro
+  // 🔁 polling isolado e estável
   useEffect(() => {
+    if (!ENABLE_POLLING) return;
+
     pollingRef.current = window.setInterval(() => {
       pollPositions();
     }, POLLING_INTERVAL_MS);
@@ -79,7 +93,7 @@ export function useVehicles() {
         clearInterval(pollingRef.current);
       }
     };
-  }, [vehicles]); // ← DEPENDÊNCIA CRÍTICA
+  }, []); // ✅ SEM dependência de vehicles
 
   return {
     vehicles,
