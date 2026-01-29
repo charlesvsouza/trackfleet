@@ -1,16 +1,8 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 
-type PrivateRouteProps = {
-  children: JSX.Element;
-};
-
-export function PrivateRoute({ children }: PrivateRouteProps) {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return null; // ou spinner futuramente
-  }
+export function PrivateRoute({ children }: { children: JSX.Element }) {
+  const { isAuthenticated } = useAuth();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
