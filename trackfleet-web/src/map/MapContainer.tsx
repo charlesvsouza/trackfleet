@@ -11,12 +11,8 @@ interface Props {
   clearHistorySignal: number;
 }
 
-// =======================
-// PARÂMETROS FÍSICOS
-// =======================
-const MAX_SPEED_KMH = 180;          // limite plausível
-const SMOOTHING_FACTOR = 0.15;      // inércia (0.1–0.25 ideal)
-const STOP_THRESHOLD_KMH = 2;       // abaixo disso considera parado
+const ANIMATION_DURATION = 800; // ms
+const SPEED_EPSILON = 0.5; // m/s (~1.8 km/h)
 
 export function MapContainer({
   vehicles,
@@ -28,16 +24,20 @@ export function MapContainer({
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<google.maps.Map | null>(null);
 
+  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+
   const markersRef = useRef<
     Record<
       string,
       {
         marker: google.maps.marker.AdvancedMarkerElement;
         svg: VehicleMarkerSvg;
-        position: google.maps.LatLngLiteral;
-        velocity: google.maps.LatLngLiteral;
-        speedKmh: number;
+        current: google.maps.LatLngLiteral;
+        target: google.maps.LatLngLiteral;
+        startTime: number;
         lastUpdate: number;
+        speedKmh: number;
+        plate: string;
       }
     >
   >({});
@@ -48,14 +48,14 @@ export function MapContainer({
   const [loaded, setLoaded] = useState(false);
 
   // =======================
-  // LOAD MAPS
+  // LOAD GOOGLE MAPS
   // =======================
   useEffect(() => {
     loadGoogleMaps().then(() => setLoaded(true));
   }, []);
 
   // =======================
-  // INIT MAP
+  // MAP INIT
   // =======================
   useEffect(() => {
     if (!loaded || !mapRef.current || mapInstance.current) return;
@@ -65,60 +65,82 @@ export function MapContainer({
       zoom: 12,
       mapId: "TRACKFLEET_MAP"
     });
+
+    infoWindowRef.current = new google.maps.InfoWindow();
   }, [loaded]);
 
   // =======================
-  // ANIMAÇÃO COM INÉRCIA
+  // HELPERS
   // =======================
-  useEffect(() => {
-    if (!mapInstance.current) return;
+  function lerp(a: number, b: number, t: number) {
+    return a + (b - a) * t;
+  }
 
-    const tick = () => {
-      Object.values(markersRef.current).forEach(entry => {
-        // aplica desaceleração
-        entry.velocity.lat *= 1 - SMOOTHING_FACTOR;
-        entry.velocity.lng *= 1 - SMOOTHING_FACTOR;
-
-        entry.position = {
-          lat: entry.position.lat + entry.velocity.lat,
-          lng: entry.position.lng + entry.velocity.lng
-        };
-
-        entry.marker.position = entry.position;
-
-        const speed =
-          Math.sqrt(
-            entry.velocity.lat ** 2 + entry.velocity.lng ** 2
-          ) * 111_000 * 3.6;
-
-        entry.speedKmh = speed < STOP_THRESHOLD_KMH ? 0 : speed;
-
-        const heading = google.maps.geometry.spherical.computeHeading(
-          entry.marker.position!,
-          entry.position
-        );
-
-        entry.svg.setRotation(heading);
-      });
-
-      requestAnimationFrame(tick);
+  function interpolate(
+    from: google.maps.LatLngLiteral,
+    to: google.maps.LatLngLiteral,
+    t: number
+  ): google.maps.LatLngLiteral {
+    return {
+      lat: lerp(from.lat, to.lat, t),
+      lng: lerp(from.lng, to.lng, t)
     };
+  }
 
-    requestAnimationFrame(tick);
-  }, []);
+  function computeSpeedKmh(
+    from: google.maps.LatLngLiteral,
+    to: google.maps.LatLngLiteral,
+    deltaMs: number
+  ) {
+    const meters =
+      google.maps.geometry.spherical.computeDistanceBetween(from, to);
+    const seconds = deltaMs / 1000;
+    if (seconds <= 0) return 0;
+    return (meters / seconds) * 3.6;
+  }
 
   // =======================
-  // ATUALIZAÇÃO DE DADOS
+  // ANIMATION LOOP
+  // =======================
+  function animate() {
+    const now = performance.now();
+
+    Object.values(markersRef.current).forEach(entry => {
+      const elapsed = now - entry.startTime;
+      const t = Math.min(elapsed / ANIMATION_DURATION, 1);
+
+      const pos = interpolate(entry.current, entry.target, t);
+      entry.marker.position = pos;
+
+      const heading = google.maps.geometry.spherical.computeHeading(
+        entry.current,
+        entry.target
+      );
+      entry.svg.setRotation(heading);
+
+      if (t === 1) {
+        entry.current = entry.target;
+      }
+    });
+
+    requestAnimationFrame(animate);
+  }
+
+  useEffect(() => {
+    if (!loaded) return;
+    requestAnimationFrame(animate);
+  }, [loaded]);
+
+  // =======================
+  // DATA UPDATE
   // =======================
   useEffect(() => {
     if (!mapInstance.current) return;
-
-    const now = performance.now();
 
     vehicles.forEach(vehicle => {
       if (!vehicle.position) return;
 
-      const target = {
+      const pos: google.maps.LatLngLiteral = {
         lat: vehicle.position.lat,
         lng: vehicle.position.lng
       };
@@ -127,63 +149,119 @@ export function MapContainer({
         historyRef.current[vehicle.id] = [];
       }
 
-      historyRef.current[vehicle.id].push(target);
-      while (historyRef.current[vehicle.id].length > historySize) {
-        historyRef.current[vehicle.id].shift();
-      }
+      const history = historyRef.current[vehicle.id];
+      const prev = history[history.length - 1];
 
-      let entry = markersRef.current[vehicle.id];
+      history.push(pos);
+      while (history.length > historySize) history.shift();
+
+      const now = performance.now();
+
+      const entry = markersRef.current[vehicle.id];
 
       if (!entry) {
         const svg = createVehicleSvg();
 
         const marker = new google.maps.marker.AdvancedMarkerElement({
           map: mapInstance.current!,
-          position: target,
+          position: pos,
           content: svg.root
         });
 
-        entry = {
+        const newEntry = {
           marker,
           svg,
-          position: target,
-          velocity: { lat: 0, lng: 0 },
+          current: pos,
+          target: pos,
+          startTime: now,
+          lastUpdate: now,
           speedKmh: 0,
-          lastUpdate: now
+          plate: vehicle.plate
         };
 
-        markersRef.current[vehicle.id] = entry;
+        marker.addListener("mouseover", () => {
+          if (!infoWindowRef.current) return;
+
+          const status =
+            newEntry.speedKmh < SPEED_EPSILON
+              ? "Parado"
+              : "Em movimento";
+
+          infoWindowRef.current.setContent(`
+            <div style="font-size:13px">
+              <strong>Placa:</strong> ${newEntry.plate}<br/>
+              <strong>Velocidade:</strong> ${newEntry.speedKmh.toFixed(
+                1
+              )} km/h<br/>
+              <strong>Status:</strong> ${status}
+            </div>
+          `);
+
+          infoWindowRef.current.open({
+            map: mapInstance.current!,
+            anchor: marker
+          });
+        });
+
+        marker.addListener("mouseout", () => {
+          infoWindowRef.current?.close();
+        });
+
+        markersRef.current[vehicle.id] = newEntry;
+      } else {
+        if (prev) {
+          entry.speedKmh = computeSpeedKmh(
+            prev,
+            pos,
+            now - entry.lastUpdate
+          );
+        }
+
+        entry.target = pos;
+        entry.startTime = now;
+        entry.lastUpdate = now;
       }
 
-      const dt = Math.max((now - entry.lastUpdate) / 1000, 0.001);
-
-      const deltaLat = target.lat - entry.position.lat;
-      const deltaLng = target.lng - entry.position.lng;
-
-      entry.velocity.lat = deltaLat / dt * 0.00001;
-      entry.velocity.lng = deltaLng / dt * 0.00001;
-
-      entry.lastUpdate = now;
-
-      // Polyline
       let polyline = polylinesRef.current[vehicle.id];
 
       if (!polyline) {
         polyline = new google.maps.Polyline({
           map: mapInstance.current!,
-          path: historyRef.current[vehicle.id],
+          path: history,
           strokeColor: "#7b1fa2",
           strokeOpacity: 0.6,
           strokeWeight: 4
         });
+
         polylinesRef.current[vehicle.id] = polyline;
       } else {
-        polyline.setPath(historyRef.current[vehicle.id]);
+        polyline.setPath(history);
       }
 
       polyline.setMap(showTrails ? mapInstance.current! : null);
     });
   }, [vehicles, showTrails, historySize]);
+
+  // =======================
+  // CLEAR HISTORY
+  // =======================
+  useEffect(() => {
+    Object.values(historyRef.current).forEach(h => (h.length = 0));
+    Object.values(polylinesRef.current).forEach(p => p.setPath([]));
+  }, [clearHistorySignal]);
+
+  // =======================
+  // FOCUS VEHICLE
+  // =======================
+  useEffect(() => {
+    if (!selectedVehicleId || !mapInstance.current) return;
+
+    const entry = markersRef.current[selectedVehicleId];
+    if (entry?.marker.position) {
+      mapInstance.current.panTo(entry.marker.position);
+      mapInstance.current.setZoom(15);
+    }
+  }, [selectedVehicleId]);
 
   return <div ref={mapRef} style={{ height: "100%", width: "100%" }} />;
 }

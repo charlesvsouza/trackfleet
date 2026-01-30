@@ -96,6 +96,33 @@ export function useVehicles() {
   }
 
   // =======================
+  // UPDATE
+  // =======================
+
+  async function updateVehicle(
+    id: string,
+    payload: CreateVehicleDTO
+  ) {
+    const updated = await vehicleService.update(id, payload);
+
+    setVehicles(prev =>
+      prev.map(v => (v.id === id ? { ...v, ...updated } : v))
+    );
+
+    return updated;
+  }
+
+  // =======================
+  // DELETE
+  // =======================
+
+  async function deleteVehicle(id: string) {
+    await vehicleService.remove(id);
+
+    setVehicles(prev => prev.filter(v => v.id !== id));
+  }
+
+  // =======================
   // EFFECTS
   // =======================
 
@@ -151,6 +178,8 @@ export function useVehicles() {
     loading,
     error,
     loadVehicles,
-    addVehicle
+    addVehicle,
+    updateVehicle,
+    deleteVehicle
   };
 }
