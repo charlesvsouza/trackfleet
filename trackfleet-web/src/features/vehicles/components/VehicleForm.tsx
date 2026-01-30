@@ -1,22 +1,22 @@
-// src/features/vehicles/components/VehicleForm.tsx
-
 import { useState } from "react";
-import { CreateVehicleDTO, VehicleType } from "../types";
+import { CreateVehicleDTO } from "../types";
 
-interface VehicleFormProps {
+interface Props {
   onSubmit: (data: CreateVehicleDTO) => Promise<void>;
 }
 
-export function VehicleForm({ onSubmit }: VehicleFormProps) {
-  const [name, setName] = useState("");
+export function VehicleForm({ onSubmit }: Props) {
   const [plate, setPlate] = useState("");
-  const [type, setType] = useState<VehicleType>("Car");
+  const [description, setDescription] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    await onSubmit({ name, plate, type });
-    setName("");
+    setLoading(true);
+    await onSubmit({ plate, description });
+    setLoading(false);
     setPlate("");
+    setDescription("");
   }
 
   return (
@@ -28,63 +28,52 @@ export function VehicleForm({ onSubmit }: VehicleFormProps) {
         gap: 12
       }}
     >
-      <h3 style={{ margin: 0, fontSize: 16 }}>Novo veículo</h3>
-
-      <label style={{ fontSize: 13, color: "#555" }}>
-        Nome
-        <input
-          value={name}
-          onChange={e => setName(e.target.value)}
-          required
-          style={inputStyle}
-        />
-      </label>
-
-      <label style={{ fontSize: 13, color: "#555" }}>
+      <label style={{ fontSize: 13, fontWeight: 500 }}>
         Placa
         <input
           value={plate}
           onChange={e => setPlate(e.target.value)}
           required
+          placeholder="ABC-1234"
           style={inputStyle}
         />
       </label>
 
-      <label style={{ fontSize: 13, color: "#555" }}>
-        Tipo
-        <select
-          value={type}
-          onChange={e => setType(e.target.value as VehicleType)}
+      <label style={{ fontSize: 13, fontWeight: 500 }}>
+        Descrição
+        <input
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          placeholder="Caminhão Volvo"
           style={inputStyle}
-        >
-          <option value="Car">Carro</option>
-          <option value="Truck">Caminhão</option>
-          <option value="Motorcycle">Moto</option>
-        </select>
+        />
       </label>
 
       <button
         type="submit"
+        disabled={loading}
         style={{
           marginTop: 8,
-          padding: "10px 14px",
+          padding: "10px",
           background: "#1976d2",
           color: "#fff",
           border: "none",
           borderRadius: 6,
+          fontWeight: 500,
           cursor: "pointer",
-          fontWeight: 500
+          opacity: loading ? 0.7 : 1
         }}
       >
-        Salvar veículo
+        {loading ? "Salvando..." : "Cadastrar"}
       </button>
     </form>
   );
 }
 
 const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "10px",
   marginTop: 4,
-  padding: "8px 10px",
   borderRadius: 6,
   border: "1px solid #ccc",
   fontSize: 14

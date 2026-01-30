@@ -2,24 +2,37 @@ import { useEffect, useRef, useState } from "react";
 import { vehicleService } from "@/services/vehicleService";
 import { vehiclePositionService } from "@/services/vehiclePositionService";
 import { Vehicle, CreateVehicleDTO } from "../types";
+import { useVehicleTracking } from "@/realtime/useVehicleTracking";
 
-// 🔧 CONTROLE TÉCNICO
+// =======================
+// CONTROLE TÉCNICO
+// =======================
+
 const ENABLE_POLLING = true;
 const POLLING_INTERVAL_MS = 5000;
+const ENABLE_SIGNALR = true;
+
+// =======================
+// HOOK
+// =======================
 
 export function useVehicles() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 🔒 ref estável para evitar recriação do intervalo
+  // refs estáveis
   const vehiclesRef = useRef<Vehicle[]>([]);
   const pollingRef = useRef<number | null>(null);
 
-  // mantém ref sincronizada com o estado
+  // mantém ref sincronizada
   useEffect(() => {
     vehiclesRef.current = vehicles;
   }, [vehicles]);
+
+  // =======================
+  // LOAD INICIAL
+  // =======================
 
   async function loadVehicles() {
     try {
@@ -46,10 +59,13 @@ export function useVehicles() {
     }
   }
 
+  // =======================
+  // POLLING (FALLBACK)
+  // =======================
+
   async function pollPositions() {
     try {
       const current = vehiclesRef.current;
-
       if (current.length === 0) return;
 
       const updated = await Promise.all(
@@ -65,9 +81,13 @@ export function useVehicles() {
 
       setVehicles(updated);
     } catch {
-      // polling não deve quebrar a UI
+      // silencioso por design
     }
   }
+
+  // =======================
+  // CREATE
+  // =======================
 
   async function addVehicle(payload: CreateVehicleDTO) {
     const created = await vehicleService.create(payload);
@@ -75,25 +95,56 @@ export function useVehicles() {
     return created;
   }
 
-  // 🔁 carga inicial
+  // =======================
+  // EFFECTS
+  // =======================
+
   useEffect(() => {
     loadVehicles();
   }, []);
 
-  // 🔁 polling isolado e estável
   useEffect(() => {
     if (!ENABLE_POLLING) return;
 
-    pollingRef.current = window.setInterval(() => {
-      pollPositions();
-    }, POLLING_INTERVAL_MS);
+    pollingRef.current = window.setInterval(
+      pollPositions,
+      POLLING_INTERVAL_MS
+    );
 
     return () => {
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
       }
     };
-  }, []); // ✅ SEM dependência de vehicles
+  }, []);
+
+  // =======================
+  // SIGNALR — REALTIME
+  // =======================
+
+  useVehicleTracking({
+    enabled: ENABLE_SIGNALR,
+    onPosition: event => {
+      setVehicles(prev =>
+        prev.map(v =>
+          v.id === event.vehicleId
+            ? {
+                ...v,
+                position: {
+                  lat: event.lat,
+                  lng: event.lng,
+                  timestamp: event.timestamp
+                }
+              }
+            : v
+        )
+      );
+    }
+  });
+
+  // =======================
+  // API
+  // =======================
 
   return {
     vehicles,

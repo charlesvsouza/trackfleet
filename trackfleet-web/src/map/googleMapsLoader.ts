@@ -1,5 +1,3 @@
-// src/map/googleMapsLoader.ts
-
 let googleMapsPromise: Promise<void> | null = null;
 
 export function loadGoogleMaps(): Promise<void> {
@@ -7,21 +5,48 @@ export function loadGoogleMaps(): Promise<void> {
     return googleMapsPromise;
   }
 
-  googleMapsPromise = new Promise((resolve, reject) => {
-    if ((window as any).google?.maps) {
+  googleMapsPromise = new Promise(async (resolve, reject) => {
+    try {
+      if (!window.google || !window.google.maps) {
+        const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+        if (!apiKey) {
+          reject(new Error("Google Maps API key not found"));
+          return;
+        }
+
+        await new Promise<void>((res, rej) => {
+          const script = document.createElement("script");
+          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=weekly`;
+          script.async = true;
+          script.defer = true;
+          script.onload = () => res();
+          script.onerror = rej;
+          document.head.appendChild(script);
+        });
+      }
+
+      // ✅ IMPORTAÇÃO MODULAR CORRETA
+      await google.maps.importLibrary("maps");
+      await google.maps.importLibrary("marker");
+      await google.maps.importLibrary("geometry");
+
+      // 🔒 validação final
+      if (
+        !google.maps.marker?.AdvancedMarkerElement ||
+        !google.maps.geometry?.spherical
+      ) {
+        reject(
+          new Error(
+            "Google Maps libraries loaded, but AdvancedMarker or Geometry not available"
+          )
+        );
+        return;
+      }
+
       resolve();
-      return;
+    } catch (err) {
+      reject(err);
     }
-
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}`;
-    script.async = true;
-    script.defer = true;
-
-    script.onload = () => resolve();
-    script.onerror = () => reject("Erro ao carregar Google Maps");
-
-    document.head.appendChild(script);
   });
 
   return googleMapsPromise;

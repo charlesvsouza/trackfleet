@@ -8,23 +8,21 @@ import { MapContainer } from "@/map/MapContainer";
 
 export function MapPage() {
   const { vehicles, loading, error, addVehicle } = useVehicles();
+
   const [showForm, setShowForm] = useState(false);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
 
-  if (loading) {
-    return <p style={{ padding: 24 }}>Carregando veículos...</p>;
-  }
+  // 🔧 CONTROLES DE TRILHA
+  const [showTrails, setShowTrails] = useState(true);
+  const [historySize, setHistorySize] = useState(30);
+  const [clearHistorySignal, setClearHistorySignal] = useState(0);
 
-  if (error) {
-    return (
-      <p style={{ padding: 24, color: "#b00020" }}>
-        {error}
-      </p>
-    );
-  }
+  if (loading) return <p style={{ padding: 24 }}>Carregando veículos…</p>;
+  if (error) return <p style={{ padding: 24, color: "#b00020" }}>{error}</p>;
 
   return (
     <div style={{ display: "flex", height: "100vh", background: "#f4f6f8" }}>
-      {/* Sidebar */}
+      {/* SIDEBAR */}
       <aside
         style={{
           width: 360,
@@ -38,52 +36,100 @@ export function MapPage() {
       >
         <header>
           <h1 style={{ margin: 0, fontSize: 22 }}>TrackFleet</h1>
-          <p style={{ margin: "4px 0 0", color: "#666", fontSize: 14 }}>
+          <p style={{ marginTop: 4, color: "#666" }}>
             Monitoramento de veículos
           </p>
         </header>
 
         <button
-          onClick={() => setShowForm(prev => !prev)}
+          onClick={() => setShowForm(v => !v)}
           style={{
             padding: "10px 14px",
             background: "#1976d2",
             color: "#fff",
             border: "none",
             borderRadius: 6,
-            cursor: "pointer",
-            fontWeight: 500
+            cursor: "pointer"
           }}
         >
           {showForm ? "Fechar cadastro" : "+ Cadastrar veículo"}
         </button>
 
         {showForm && (
-          <div
-            style={{
-              background: "#fafafa",
-              border: "1px solid #e0e0e0",
-              borderRadius: 8,
-              padding: 16
+          <VehicleForm
+            onSubmit={async data => {
+              await addVehicle(data);
+              setShowForm(false);
             }}
-          >
-            <VehicleForm
-              onSubmit={async data => {
-                await addVehicle(data);
-                setShowForm(false);
-              }}
-            />
-          </div>
+          />
         )}
 
+        {/* 🔧 CONTROLES DE TRILHA */}
+        <section
+          style={{
+            padding: 12,
+            border: "1px solid #e0e0e0",
+            borderRadius: 8,
+            background: "#fafafa"
+          }}
+        >
+          <strong>Trilha</strong>
+
+          <label style={{ display: "block", marginTop: 8 }}>
+            <input
+              type="checkbox"
+              checked={showTrails}
+              onChange={e => setShowTrails(e.target.checked)}
+            />{" "}
+            Exibir trilhas
+          </label>
+
+          <label style={{ display: "block", marginTop: 8 }}>
+            Histórico ({historySize})
+            <input
+              type="range"
+              min={5}
+              max={100}
+              value={historySize}
+              onChange={e => setHistorySize(Number(e.target.value))}
+              style={{ width: "100%" }}
+            />
+          </label>
+
+          <button
+            onClick={() => setClearHistorySignal(v => v + 1)}
+            style={{
+              marginTop: 8,
+              padding: "6px 10px",
+              borderRadius: 4,
+              border: "1px solid #d32f2f",
+              background: "#fff",
+              color: "#d32f2f",
+              cursor: "pointer"
+            }}
+          >
+            Limpar trilhas
+          </button>
+        </section>
+
         <section style={{ flex: 1, overflowY: "auto" }}>
-          <VehicleList vehicles={vehicles} />
+          <VehicleList
+            vehicles={vehicles}
+            onSelect={setSelectedVehicleId}
+            selectedVehicleId={selectedVehicleId}
+          />
         </section>
       </aside>
 
-      {/* Mapa */}
+      {/* MAPA */}
       <main style={{ flex: 1 }}>
-        <MapContainer vehicles={vehicles} />
+        <MapContainer
+          vehicles={vehicles}
+          selectedVehicleId={selectedVehicleId}
+          showTrails={showTrails}
+          historySize={historySize}
+          clearHistorySignal={clearHistorySignal}
+        />
       </main>
     </div>
   );
