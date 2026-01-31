@@ -1,20 +1,45 @@
+import { useState } from "react";
 import { Vehicle } from "../types";
 
 interface Props {
   vehicles: Vehicle[];
   selectedVehicleId: string | null;
   onSelect: (id: string) => void;
-  onEdit: (vehicle: Vehicle) => void;
-  onDelete: (id: string) => void;
+  onUpdate: (id: string, data: Partial<Vehicle>) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
 }
 
 export function VehicleList({
   vehicles,
   selectedVehicleId,
   onSelect,
-  onEdit,
+  onUpdate,
   onDelete
 }: Props) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [plate, setPlate] = useState("");
+  const [description, setDescription] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  function startEdit(vehicle: Vehicle) {
+    setEditingId(vehicle.id);
+    setPlate(vehicle.plate);
+    setDescription(vehicle.description ?? "");
+  }
+
+  async function saveEdit(id: string) {
+    setLoading(true);
+    await onUpdate(id, { plate, description });
+    setLoading(false);
+    setEditingId(null);
+  }
+
+  async function remove(id: string) {
+    const ok = window.confirm("Deseja realmente remover este veículo?");
+    if (!ok) return;
+    await onDelete(id);
+  }
+
   if (vehicles.length === 0) {
     return <p style={{ fontSize: 14, color: "#777" }}>Nenhum veículo.</p>;
   }
@@ -32,6 +57,7 @@ export function VehicleList({
     >
       {vehicles.map(vehicle => {
         const selected = vehicle.id === selectedVehicleId;
+        const editing = vehicle.id === editingId;
 
         return (
           <li
@@ -45,47 +71,79 @@ export function VehicleList({
                 : "1px solid #e0e0e0"
             }}
           >
-            <div
-              onClick={() => onSelect(vehicle.id)}
-              style={{ cursor: "pointer" }}
-            >
-              <strong style={{ fontSize: 14 }}>{vehicle.plate}</strong>
-              {vehicle.description && (
-                <div style={{ fontSize: 13, color: "#555" }}>
-                  {vehicle.description}
+            {!editing ? (
+              <>
+                <div
+                  onClick={() => onSelect(vehicle.id)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <strong style={{ fontSize: 14 }}>{vehicle.plate}</strong>
+                  {vehicle.description && (
+                    <div style={{ fontSize: 13, color: "#555" }}>
+                      {vehicle.description}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                marginTop: 8
-              }}
-            >
-              <button
-                onClick={() => onEdit(vehicle)}
-                style={actionButton("#1976d2")}
-              >
-                Editar
-              </button>
+                <div
+                  style={{
+                    marginTop: 8,
+                    display: "flex",
+                    gap: 8
+                  }}
+                >
+                  <button
+                    onClick={() => startEdit(vehicle)}
+                    style={btnSecondary}
+                  >
+                    ✏️ Editar
+                  </button>
+                  <button
+                    onClick={() => remove(vehicle.id)}
+                    style={btnDanger}
+                  >
+                    🗑️ Remover
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <input
+                  value={plate}
+                  onChange={e => setPlate(e.target.value)}
+                  placeholder="Placa"
+                  style={inputStyle}
+                />
+                <input
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  placeholder="Descrição"
+                  style={inputStyle}
+                />
 
-              <button
-                onClick={() => {
-                  if (
-                    confirm(
-                      `Deseja remover o veículo ${vehicle.plate}?`
-                    )
-                  ) {
-                    onDelete(vehicle.id);
-                  }
-                }}
-                style={actionButton("#d32f2f")}
-              >
-                Remover
-              </button>
-            </div>
+                <div
+                  style={{
+                    marginTop: 8,
+                    display: "flex",
+                    gap: 8
+                  }}
+                >
+                  <button
+                    onClick={() => saveEdit(vehicle.id)}
+                    disabled={loading}
+                    style={btnPrimary}
+                  >
+                    Salvar
+                  </button>
+                  <button
+                    onClick={() => setEditingId(null)}
+                    style={btnSecondary}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            )}
           </li>
         );
       })}
@@ -93,15 +151,44 @@ export function VehicleList({
   );
 }
 
-function actionButton(color: string): React.CSSProperties {
-  return {
-    flex: 1,
-    padding: "6px",
-    fontSize: 12,
-    background: color,
-    color: "#fff",
-    border: "none",
-    borderRadius: 4,
-    cursor: "pointer"
-  };
-}
+// =======================
+// STYLES
+// =======================
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "8px",
+  marginTop: 4,
+  borderRadius: 6,
+  border: "1px solid #ccc",
+  fontSize: 14
+};
+
+const btnPrimary: React.CSSProperties = {
+  padding: "6px 10px",
+  background: "#1976d2",
+  color: "#fff",
+  border: "none",
+  borderRadius: 6,
+  cursor: "pointer",
+  fontSize: 13
+};
+
+const btnSecondary: React.CSSProperties = {
+  padding: "6px 10px",
+  background: "#e0e0e0",
+  border: "none",
+  borderRadius: 6,
+  cursor: "pointer",
+  fontSize: 13
+};
+
+const btnDanger: React.CSSProperties = {
+  padding: "6px 10px",
+  background: "#d32f2f",
+  color: "#fff",
+  border: "none",
+  borderRadius: 6,
+  cursor: "pointer",
+  fontSize: 13
+};

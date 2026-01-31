@@ -1,28 +1,91 @@
-# ===============================
-# Visual Studio / .NET
-# ===============================
-.vs/
+# ============================
+# .NET / Visual Studio
+# ============================
+
 bin/
 obj/
-
-# ===============================
-# IDEs
-# ===============================
-.idea/
+.vs/
 .vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
 
-# ===============================
+# Rider / JetBrains
+.idea/
+*.iml
+
+# ============================
 # Logs
-# ===============================
+# ============================
+
 *.log
+logs/
+log/
 
-# ===============================
-# Docker
-# ===============================
-**/docker-data/
+# ============================
+# Secrets / Configuração local
+# ============================
 
-# ===============================
-# Configura��es locais / secrets
-# ===============================
 appsettings.Development.json
-appsettings.Backup.json
+appsettings.Local.json
+appsettings.*.local.json
+secrets.json
+
+# ============================
+# Environment / OS
+# ============================
+
+.env
+.env.*
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ============================
+# Certificados / Chaves
+# ============================
+
+*.pfx
+*.pem
+*.key
+*.crt
+
+# ============================
+# Testes / Coverage
+# ============================
+
+TestResults/
+coverage/
+coverage.xml
+
+# ============================
+# Publicação / Deploy
+# ============================
+
+publish/
+artifacts/
+dist/
+
+# ============================
+# Docker
+# ============================
+
+docker-compose.override.yml
+
+# ============================
+# Node / Frontend (se houver)
+# ============================
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================
+# Outros
+# ============================
+
+*.tmp
+*.bak
+*.swp

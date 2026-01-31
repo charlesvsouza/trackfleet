@@ -9,11 +9,25 @@ public class Tenant
 
     protected Tenant() { } // EF Core
 
-    public Tenant(string name)
+    private Tenant(string name)
     {
         Id = Guid.NewGuid();
         Name = name;
         IsActive = true;
         CreatedAtUtc = DateTime.UtcNow;
+    }
+
+    // ✅ ÚNICO ponto permitido de criação
+    public static Tenant Create(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Tenant name is required.");
+
+        return new Tenant(name);
+    }
+
+    public void Deactivate()
+    {
+        IsActive = false;
     }
 }

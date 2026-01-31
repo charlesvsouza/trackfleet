@@ -1,27 +1,32 @@
-﻿using TrackFleet.Domain.Entities;
+﻿using Microsoft.EntityFrameworkCore;
+using TrackFleet.Domain.Entities;
 
 namespace TrackFleet.Infrastructure.Data;
 
 public static class DbInitializer
 {
-    public static void Seed(TrackFleetDbContext context)
+    public static async Task InitializeAsync(TrackFleetDbContext context)
     {
-        if (context.Tenants.Any())
+        await context.Database.MigrateAsync();
+
+        if (await context.Tenants.AnyAsync())
             return;
 
-        var tenant = new Tenant("TrackFleet Default");
+        var tenant = Tenant.Create("TrackFleet Default");
+
+        context.Tenants.Add(tenant);
+        await context.SaveChangesAsync();
 
         var admin = new User(
             tenant.Id,
-            "admin@trackfleet.com",
-            "Administrador",
-            "Admin"
+            email: "admin@trackfleet.com",
+            fullName: "Administrador",
+            role: "Admin"
         );
 
         admin.SetPassword("123456");
 
-        context.Tenants.Add(tenant);
         context.Users.Add(admin);
-        context.SaveChanges();
+        await context.SaveChangesAsync();
     }
 }
