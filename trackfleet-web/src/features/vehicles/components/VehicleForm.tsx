@@ -1,128 +1,95 @@
-import { useEffect, useState } from "react";
-import { CreateVehicleDTO, Vehicle } from "../types";
+import { useState } from "react";
+import { CreateVehicleDTO } from "../types";
 
 interface Props {
   onSubmit: (data: CreateVehicleDTO) => Promise<void>;
-  onUpdate?: (id: string, data: CreateVehicleDTO) => Promise<void>;
-  editingVehicle?: Vehicle | null;
-  onCancelEdit?: () => void;
 }
 
-export function VehicleForm({
-  onSubmit,
-  onUpdate,
-  editingVehicle,
-  onCancelEdit
-}: Props) {
+export function VehicleForm({ onSubmit }: Props) {
   const [plate, setPlate] = useState("");
-  const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const isEditing = Boolean(editingVehicle);
-
-  useEffect(() => {
-    if (editingVehicle) {
-      setPlate(editingVehicle.plate);
-      setDescription(editingVehicle.description ?? "");
-    } else {
-      setPlate("");
-      setDescription("");
-    }
-  }, [editingVehicle]);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
 
-    if (isEditing && editingVehicle && onUpdate) {
-      await onUpdate(editingVehicle.id, { plate, description });
-    } else {
-      await onSubmit({ plate, description });
+    if (!plate.trim()) {
+      setError("Informe a placa do veículo.");
+      return;
     }
 
-    setLoading(false);
-    setPlate("");
-    setDescription("");
+    try {
+      setLoading(true);
+      setError(null);
+      setSuccess(false);
+
+      await onSubmit({ plate });
+
+      setPlate("");
+      setSuccess(true);
+    } catch {
+      setError("Erro ao cadastrar veículo.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 12
-      }}
-    >
-      <label style={{ fontSize: 13, fontWeight: 500 }}>
-        Placa
+    <form onSubmit={handleSubmit}>
+      <div style={{ marginBottom: 8 }}>
         <input
           value={plate}
           onChange={e => setPlate(e.target.value)}
-          required
-          placeholder="ABC-1234"
-          style={inputStyle}
-        />
-      </label>
-
-      <label style={{ fontSize: 13, fontWeight: 500 }}>
-        Descrição
-        <input
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-          placeholder="Caminhão Volvo"
-          style={inputStyle}
-        />
-      </label>
-
-      <div style={{ display: "flex", gap: 8 }}>
-        <button
-          type="submit"
+          placeholder="Placa do veículo"
           disabled={loading}
-          style={{
-            flex: 1,
-            padding: "10px",
-            background: "#1976d2",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            fontWeight: 500,
-            cursor: "pointer",
-            opacity: loading ? 0.7 : 1
-          }}
-        >
-          {loading
-            ? "Salvando..."
-            : isEditing
-            ? "Atualizar"
-            : "Cadastrar"}
-        </button>
-
-        {isEditing && onCancelEdit && (
-          <button
-            type="button"
-            onClick={onCancelEdit}
-            style={{
-              padding: "10px",
-              background: "#e0e0e0",
-              border: "none",
-              borderRadius: 6,
-              cursor: "pointer"
-            }}
-          >
-            Cancelar
-          </button>
-        )}
+          style={input}
+        />
       </div>
+
+      {error && <div style={errorStyle}>{error}</div>}
+      {success && (
+        <div style={successStyle}>Veículo cadastrado com sucesso.</div>
+      )}
+
+      <button type="submit" disabled={loading} style={button}>
+        {loading ? "Salvando…" : "Adicionar veículo"}
+      </button>
     </form>
   );
 }
 
-const inputStyle: React.CSSProperties = {
+// =======================
+// STYLES
+// =======================
+
+const input: React.CSSProperties = {
   width: "100%",
-  padding: "10px",
-  marginTop: 4,
+  padding: "8px",
+  fontSize: 14,
   borderRadius: 6,
-  border: "1px solid #ccc",
-  fontSize: 14
+  border: "1px solid #ccc"
+};
+
+const button: React.CSSProperties = {
+  marginTop: 8,
+  padding: "8px 12px",
+  borderRadius: 6,
+  border: "none",
+  background: "#1976d2",
+  color: "#fff",
+  cursor: "pointer",
+  fontSize: 13
+};
+
+const errorStyle: React.CSSProperties = {
+  fontSize: 12,
+  color: "#b71c1c",
+  marginBottom: 6
+};
+
+const successStyle: React.CSSProperties = {
+  fontSize: 12,
+  color: "#2e7d32",
+  marginBottom: 6
 };

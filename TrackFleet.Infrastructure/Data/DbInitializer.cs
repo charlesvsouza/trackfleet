@@ -9,24 +9,40 @@ public static class DbInitializer
     {
         await context.Database.MigrateAsync();
 
-        if (await context.Tenants.AnyAsync())
-            return;
+        // ==========================
+        // TENANT
+        // ==========================
+        var tenant = await context.Tenants.FirstOrDefaultAsync();
 
-        var tenant = Tenant.Create("TrackFleet Default");
+        if (tenant == null)
+        {
+            tenant = Tenant.Create("TrackFleet Default");
+            context.Tenants.Add(tenant);
+            await context.SaveChangesAsync();
+        }
 
-        context.Tenants.Add(tenant);
-        await context.SaveChangesAsync();
+        // ==========================
+        // ADMIN USER
+        // ==========================
+        const string adminEmail = "admin@trackfleet.com";
 
-        var admin = new User(
-            tenant.Id,
-            email: "admin@trackfleet.com",
-            fullName: "Administrador",
-            role: "Admin"
-        );
+        var adminExists = await context.Users
+            .IgnoreQueryFilters()
+            .AnyAsync(u => u.Email == adminEmail);
 
-        admin.SetPassword("123456");
+        if (!adminExists)
+        {
+            var admin = new User(
+                tenant.Id,
+                email: adminEmail,
+                fullName: "Administrador",
+                role: "Admin"
+            );
 
-        context.Users.Add(admin);
-        await context.SaveChangesAsync();
+            admin.SetPassword("123456");
+
+            context.Users.Add(admin);
+            await context.SaveChangesAsync();
+        }
     }
 }

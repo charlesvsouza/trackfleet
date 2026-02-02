@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using TrackFleet.Api.DTOs.Map;
 using TrackFleet.Api.Extensions;
 using TrackFleet.Infrastructure.Data;
 
@@ -20,20 +19,20 @@ public class MapController : ControllerBase
     }
 
     [HttpGet("vehicles")]
-    public async Task<ActionResult<IEnumerable<VehicleMapPointDto>>> GetVehicles()
+    public async Task<IActionResult> GetVehiclesForMap()
     {
         var tenantId = User.GetTenantId();
 
         var vehicles = await _context.Vehicles
             .AsNoTracking()
-            .Where(v => v.TenantId == tenantId && v.IsActive)
-            .Select(v => new VehicleMapPointDto(
+            .Where(v =>
+                v.TenantId == tenantId &&
+                v.IsActive)
+            .Select(v => new
+            {
                 v.Id,
-                v.Plate,
-                v.Latitude,
-                v.Longitude,
-                v.LastUpdateUtc
-            ))
+                v.Plate
+            })
             .ToListAsync();
 
         return Ok(vehicles);

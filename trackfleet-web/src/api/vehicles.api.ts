@@ -1,13 +1,14 @@
 // src/api/vehicles.api.ts
 
-import api from "./http";
+import api from "./http"; // Certifique-se que este arquivo existe e exporta a instância do Axios
 import { Vehicle, CreateVehicleDTO } from "@/features/vehicles/types";
 
 // =======================
 // LISTAR VEÍCULOS
 // =======================
 export async function getVehicles(): Promise<Vehicle[]> {
-  const { data } = await api.get("/vehicles");
+  // CORREÇÃO: Adicionado prefixo /api
+  const { data } = await api.get("/api/vehicles"); 
   return data;
 }
 
@@ -17,7 +18,7 @@ export async function getVehicles(): Promise<Vehicle[]> {
 export async function createVehicle(
   payload: CreateVehicleDTO
 ): Promise<Vehicle> {
-  const { data } = await api.post("/vehicles", payload);
+  const { data } = await api.post("/api/vehicles", payload);
   return data;
 }
 
@@ -28,7 +29,7 @@ export async function updateVehicle(
   id: string,
   payload: CreateVehicleDTO
 ): Promise<Vehicle> {
-  const { data } = await api.put(`/vehicles/${id}`, payload);
+  const { data } = await api.put(`/api/vehicles/${id}`, payload);
   return data;
 }
 
@@ -36,5 +37,5 @@ export async function updateVehicle(
 // REMOVER VEÍCULO
 // =======================
 export async function deleteVehicle(id: string): Promise<void> {
-  await api.delete(`/vehicles/${id}`);
+  await api.delete(`/api/vehicles/${id}`);
 }

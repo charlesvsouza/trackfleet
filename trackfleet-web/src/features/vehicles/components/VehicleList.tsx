@@ -18,91 +18,82 @@ export function VehicleList({
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [plate, setPlate] = useState("");
-  const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
 
   function startEdit(vehicle: Vehicle) {
     setEditingId(vehicle.id);
     setPlate(vehicle.plate);
-    setDescription(vehicle.description ?? "");
   }
 
   async function saveEdit(id: string) {
-    setLoading(true);
-    await onUpdate(id, { plate, description });
-    setLoading(false);
-    setEditingId(null);
+    try {
+      setLoadingId(id);
+      await onUpdate(id, { plate });
+      setEditingId(null);
+    } finally {
+      setLoadingId(null);
+    }
   }
 
   async function remove(id: string) {
-    const ok = window.confirm("Deseja realmente remover este veículo?");
+    const ok = window.confirm(
+      "Tem certeza que deseja remover este veículo?\nEsta ação não poderá ser desfeita."
+    );
+
     if (!ok) return;
+
+    setLoadingId(id);
     await onDelete(id);
+    setLoadingId(null);
   }
 
   if (vehicles.length === 0) {
-    return <p style={{ fontSize: 14, color: "#777" }}>Nenhum veículo.</p>;
+    return <p style={{ fontSize: 13 }}>Nenhum veículo cadastrado.</p>;
   }
 
   return (
-    <ul
-      style={{
-        listStyle: "none",
-        padding: 0,
-        margin: 0,
-        display: "flex",
-        flexDirection: "column",
-        gap: 10
-      }}
-    >
-      {vehicles.map(vehicle => {
-        const selected = vehicle.id === selectedVehicleId;
-        const editing = vehicle.id === editingId;
+    <ul style={{ listStyle: "none", padding: 0 }}>
+      {vehicles.map(v => {
+        const selected = v.id === selectedVehicleId;
+        const editing = v.id === editingId;
+        const loading = v.id === loadingId;
 
         return (
           <li
-            key={vehicle.id}
+            key={v.id}
             style={{
               padding: 12,
               borderRadius: 8,
-              background: selected ? "#e3f2fd" : "#f5f7f9",
               border: selected
                 ? "2px solid #1976d2"
-                : "1px solid #e0e0e0"
+                : "1px solid #ddd",
+              marginBottom: 8,
+              background: "#fafafa"
             }}
           >
             {!editing ? (
               <>
                 <div
-                  onClick={() => onSelect(vehicle.id)}
+                  onClick={() => onSelect(v.id)}
                   style={{ cursor: "pointer" }}
                 >
-                  <strong style={{ fontSize: 14 }}>{vehicle.plate}</strong>
-                  {vehicle.description && (
-                    <div style={{ fontSize: 13, color: "#555" }}>
-                      {vehicle.description}
-                    </div>
-                  )}
+                  <strong>{v.plate}</strong>
                 </div>
 
-                <div
-                  style={{
-                    marginTop: 8,
-                    display: "flex",
-                    gap: 8
-                  }}
-                >
+                <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
                   <button
-                    onClick={() => startEdit(vehicle)}
+                    onClick={() => startEdit(v)}
+                    disabled={loading}
                     style={btnSecondary}
                   >
-                    ✏️ Editar
+                    Editar
                   </button>
                   <button
-                    onClick={() => remove(vehicle.id)}
+                    onClick={() => remove(v.id)}
+                    disabled={loading}
                     style={btnDanger}
                   >
-                    🗑️ Remover
+                    {loading ? "Removendo…" : "Remover"}
                   </button>
                 </div>
               </>
@@ -111,32 +102,21 @@ export function VehicleList({
                 <input
                   value={plate}
                   onChange={e => setPlate(e.target.value)}
-                  placeholder="Placa"
-                  style={inputStyle}
-                />
-                <input
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  placeholder="Descrição"
-                  style={inputStyle}
+                  disabled={loading}
+                  style={input}
                 />
 
-                <div
-                  style={{
-                    marginTop: 8,
-                    display: "flex",
-                    gap: 8
-                  }}
-                >
+                <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
                   <button
-                    onClick={() => saveEdit(vehicle.id)}
+                    onClick={() => saveEdit(v.id)}
                     disabled={loading}
                     style={btnPrimary}
                   >
-                    Salvar
+                    {loading ? "Salvando…" : "Salvar"}
                   </button>
                   <button
                     onClick={() => setEditingId(null)}
+                    disabled={loading}
                     style={btnSecondary}
                   >
                     Cancelar
@@ -155,13 +135,12 @@ export function VehicleList({
 // STYLES
 // =======================
 
-const inputStyle: React.CSSProperties = {
+const input: React.CSSProperties = {
   width: "100%",
-  padding: "8px",
-  marginTop: 4,
+  padding: "6px",
+  fontSize: 13,
   borderRadius: 6,
-  border: "1px solid #ccc",
-  fontSize: 14
+  border: "1px solid #ccc"
 };
 
 const btnPrimary: React.CSSProperties = {
@@ -171,7 +150,7 @@ const btnPrimary: React.CSSProperties = {
   border: "none",
   borderRadius: 6,
   cursor: "pointer",
-  fontSize: 13
+  fontSize: 12
 };
 
 const btnSecondary: React.CSSProperties = {
@@ -180,7 +159,7 @@ const btnSecondary: React.CSSProperties = {
   border: "none",
   borderRadius: 6,
   cursor: "pointer",
-  fontSize: 13
+  fontSize: 12
 };
 
 const btnDanger: React.CSSProperties = {
@@ -190,5 +169,5 @@ const btnDanger: React.CSSProperties = {
   border: "none",
   borderRadius: 6,
   cursor: "pointer",
-  fontSize: 13
+  fontSize: 12
 };

@@ -8,15 +8,19 @@ public class VehicleConfiguration : IEntityTypeConfiguration<Vehicle>
 {
     public void Configure(EntityTypeBuilder<Vehicle> builder)
     {
-        builder.HasKey(x => x.Id);
+        builder.HasKey(v => v.Id);
 
-        builder.Property(x => x.Plate)
+        builder.Property(v => v.Plate)
             .IsRequired()
             .HasMaxLength(20);
 
-        builder.HasIndex(x => x.Plate);
-
-        builder.Property(x => x.LastUpdateUtc)
+        builder.Property(v => v.CreatedAtUtc)
             .IsRequired();
+
+        builder.Property(v => v.LastUpdateUtc)
+            .IsRequired();
+
+        builder.HasIndex(v => new { v.TenantId, v.Plate })
+            .IsUnique();
     }
 }

@@ -4,6 +4,10 @@ namespace TrackFleet.Domain.Entities;
 
 public class User
 {
+    // =======================
+    // PROPERTIES
+    // =======================
+
     public Guid Id { get; private set; }
     public Guid TenantId { get; private set; }
 
@@ -12,15 +16,23 @@ public class User
     public string Role { get; private set; } = null!;
 
     // 🔐 Login tradicional
-    public string PasswordHash { get; private set; } = null!;
+    public string? PasswordHash { get; private set; }
 
-    // 🔑 Login Google (OPCIONAL)
+    // 🔑 Login Google (opcional)
     public string? GoogleSub { get; private set; }
 
     public bool IsActive { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
 
-    protected User() { } // EF Core
+    // =======================
+    // EF CORE
+    // =======================
+
+    protected User() { }
+
+    // =======================
+    // CONSTRUCTOR
+    // =======================
 
     public User(
         Guid tenantId,
@@ -32,7 +44,8 @@ public class User
         TenantId = tenantId;
         Email = email;
         FullName = fullName;
-        Role = role;
+        SetRole(role);
+
         IsActive = true;
         CreatedAtUtc = DateTime.UtcNow;
     }
@@ -43,12 +56,35 @@ public class User
 
     public void SetPassword(string password)
     {
+        if (string.IsNullOrWhiteSpace(password))
+            throw new ArgumentException("Password inválida.");
+
         PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
     }
 
     public bool VerifyPassword(string password)
     {
+        if (string.IsNullOrEmpty(PasswordHash))
+            return false;
+
         return BCrypt.Net.BCrypt.Verify(password, PasswordHash);
+    }
+
+    // =======================
+    // ROLE
+    // =======================
+
+    public void SetRole(string role)
+    {
+        if (string.IsNullOrWhiteSpace(role))
+            throw new ArgumentException("Role inválida.");
+
+        role = role.ToLowerInvariant();
+
+        if (role != "admin" && role != "driver")
+            throw new ArgumentException("Role não permitida.");
+
+        Role = role;
     }
 
     // =======================
@@ -57,6 +93,9 @@ public class User
 
     public void SetGoogleSub(string googleSub)
     {
+        if (string.IsNullOrWhiteSpace(googleSub))
+            throw new ArgumentException("GoogleSub inválido.");
+
         GoogleSub = googleSub;
     }
 
@@ -67,5 +106,10 @@ public class User
     public void Deactivate()
     {
         IsActive = false;
+    }
+
+    public void Activate()
+    {
+        IsActive = true;
     }
 }

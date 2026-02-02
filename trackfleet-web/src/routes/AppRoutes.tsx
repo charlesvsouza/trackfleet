@@ -1,28 +1,40 @@
-// src/routes/AppRoutes.tsx
-// src/routes/AppRoutes.tsx
-
 import { Routes, Route, Navigate } from "react-router-dom";
-import LoginPage from "../auth/LoginPage";
-import { MapPage } from "../pages/MapPage";
-import { PrivateRoute } from "./PrivateRoute";
+import { RequireAuth } from "../auth/RequireAuth"; 
 
-export default function AppRoutes() {
+// IMPORTAÇÕES PADRONIZADAS (Todas com chaves {})
+import { LoginPage } from "../pages/LoginPage"; 
+import { UnauthorizedPage } from "../pages/UnauthorizedPage";
+import { MapPage } from "../pages/MapPage";
+import { AdminUsersPage } from "../pages/AdminUsersPage";
+
+export function AppRoutes() {
   return (
     <Routes>
-      {/* rota pública */}
+      {/* Rotas Públicas */}
       <Route path="/login" element={<LoginPage />} />
-
-      {/* rota protegida */}
-      <Route
-        path="/"
+      <Route path="/unauthorized" element={<UnauthorizedPage />} />
+      
+      {/* Rota Protegida Principal */}
+      <Route 
+        path="/dashboard" 
         element={
-          <PrivateRoute>
+          <RequireAuth>
             <MapPage />
-          </PrivateRoute>
-        }
+          </RequireAuth>
+        } 
       />
 
-      {/* fallback */}
+      {/* Rota Protegida de Admin */}
+      <Route 
+        path="/admin/users" 
+        element={
+          <RequireAuth allowedRoles={['Admin']}>
+            <AdminUsersPage />
+          </RequireAuth>
+        } 
+      />
+
+      {/* Redirecionamento Padrão */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );

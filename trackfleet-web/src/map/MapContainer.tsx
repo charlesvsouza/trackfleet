@@ -15,8 +15,8 @@ interface Props {
 // CONFIGURAÇÕES FÍSICAS
 // =======================
 
-const MIN_SPEED_KMH = 2; // abaixo disso considera parado
-const MIN_DT_MS = 300;   // evita explosão de velocidade
+const MIN_SPEED_KMH = 2;
+const MIN_DT_MS = 300;
 
 export function MapContainer({
   vehicles,
@@ -92,7 +92,7 @@ export function MapContainer({
     if (!prev || !curr || !dtMs || dtMs < MIN_DT_MS) return 0;
 
     const distance =
-      google.maps.geometry.spherical.computeDistanceBetween(prev, curr); // metros
+      google.maps.geometry.spherical.computeDistanceBetween(prev, curr);
 
     const speedMps = distance / (dtMs / 1000);
     return speedMps * 3.6;
@@ -108,7 +108,7 @@ export function MapContainer({
     vehicles.forEach(vehicle => {
       if (!vehicle.position) return;
 
-      const pos: google.maps.LatLngLiteral = {
+      const pos = {
         lat: vehicle.position.lat,
         lng: vehicle.position.lng
       };
@@ -142,12 +142,11 @@ export function MapContainer({
           pos,
           now - entry.lastTimestamp
         );
-
         status = speed >= MIN_SPEED_KMH ? "Em movimento" : "Parado";
       }
 
       const tooltipHtml = `
-        <div style="font-size:12px; padding:6px 8px; line-height:1.4;">
+        <div style="font-size:12px; padding:6px 8px;">
           <strong>${vehicle.plate}</strong><br/>
           Velocidade: ${speed.toFixed(1)} km/h<br/>
           Status: ${status}
@@ -169,18 +168,10 @@ export function MapContainer({
           title: vehicle.plate
         });
 
-        marker.addListener("mouseenter", () => {
-          info.open({
-            anchor: marker,
-            map: mapInstance.current!
-          });
-        });
-
-        marker.addListener("mouseleave", () => {
-          info.close();
-        });
-
-        svg.setRotation(heading);
+        marker.addListener("mouseenter", () =>
+          info.open({ anchor: marker, map: mapInstance.current! })
+        );
+        marker.addListener("mouseleave", () => info.close());
 
         markersRef.current[vehicle.id] = {
           marker,
@@ -191,32 +182,41 @@ export function MapContainer({
         };
       } else {
         entry.marker.position = pos;
-        entry.svg.setRotation(heading);
         entry.info.setContent(tooltipHtml);
         entry.lastPosition = pos;
         entry.lastTimestamp = now;
       }
 
-      // ---------- Polyline ----------
+      // ---------- SVG state ----------
+      const isSelected = vehicle.id === selectedVehicleId;
+      const isMoving = speed >= MIN_SPEED_KMH;
+
+      markersRef.current[vehicle.id].svg.update({
+        heading,
+        moving: isMoving,
+        selected: isSelected
+      });
+
+      // ---------- Polyline (SOMENTE SELECIONADO) ----------
       let polyline = polylinesRef.current[vehicle.id];
 
       if (!polyline) {
         polyline = new google.maps.Polyline({
-          map: mapInstance.current!,
-          path: history,
-          strokeColor: "#7b1fa2",
+          strokeColor: "#1976d2",
           strokeOpacity: 0.6,
           strokeWeight: 4
         });
-
         polylinesRef.current[vehicle.id] = polyline;
-      } else {
-        polyline.setPath(history);
       }
 
-      polyline.setMap(showTrails ? mapInstance.current! : null);
+      if (showTrails && isSelected) {
+        polyline.setPath(history);
+        polyline.setMap(mapInstance.current!);
+      } else {
+        polyline.setMap(null);
+      }
     });
-  }, [vehicles, showTrails, historySize]);
+  }, [vehicles, selectedVehicleId, showTrails, historySize]);
 
   // =======================
   // CLEAR HISTORY

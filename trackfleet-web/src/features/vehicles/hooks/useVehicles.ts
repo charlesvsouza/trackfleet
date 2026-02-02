@@ -21,11 +21,9 @@ export function useVehicles() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // refs estáveis
   const vehiclesRef = useRef<Vehicle[]>([]);
   const pollingRef = useRef<number | null>(null);
 
-  // mantém ref sincronizada
   useEffect(() => {
     vehiclesRef.current = vehicles;
   }, [vehicles]);
@@ -37,6 +35,7 @@ export function useVehicles() {
   async function loadVehicles() {
     try {
       setLoading(true);
+      setError(null);
 
       const vehiclesData = await vehicleService.list();
 
@@ -60,7 +59,7 @@ export function useVehicles() {
   }
 
   // =======================
-  // POLLING (FALLBACK)
+  // POLLING
   // =======================
 
   async function pollPositions() {
@@ -81,7 +80,7 @@ export function useVehicles() {
 
       setVehicles(updated);
     } catch {
-      // silencioso por design
+      // silencioso
     }
   }
 
@@ -90,26 +89,44 @@ export function useVehicles() {
   // =======================
 
   async function addVehicle(payload: CreateVehicleDTO) {
-    const created = await vehicleService.create(payload);
-    setVehicles(prev => [...prev, created]);
-    return created;
+    try {
+      setLoading(true);
+      setError(null);
+
+      const created = await vehicleService.create(payload);
+      setVehicles(prev => [...prev, created]);
+
+      return created;
+    } catch {
+      setError("Erro ao criar veículo");
+      throw new Error("create_failed");
+    } finally {
+      setLoading(false);
+    }
   }
 
   // =======================
   // UPDATE
   // =======================
 
-  async function updateVehicle(
-    id: string,
-    payload: CreateVehicleDTO
-  ) {
-    const updated = await vehicleService.update(id, payload);
+  async function updateVehicle(id: string, payload: CreateVehicleDTO) {
+    try {
+      setLoading(true);
+      setError(null);
 
-    setVehicles(prev =>
-      prev.map(v => (v.id === id ? { ...v, ...updated } : v))
-    );
+      const updated = await vehicleService.update(id, payload);
 
-    return updated;
+      setVehicles(prev =>
+        prev.map(v => (v.id === id ? { ...v, ...updated } : v))
+      );
+
+      return updated;
+    } catch {
+      setError("Erro ao atualizar veículo");
+      throw new Error("update_failed");
+    } finally {
+      setLoading(false);
+    }
   }
 
   // =======================
@@ -117,9 +134,21 @@ export function useVehicles() {
   // =======================
 
   async function deleteVehicle(id: string) {
-    await vehicleService.remove(id);
+    const snapshot = vehiclesRef.current;
 
-    setVehicles(prev => prev.filter(v => v.id !== id));
+    try {
+      setLoading(true);
+      setError(null);
+
+      await vehicleService.remove(id);
+      setVehicles(prev => prev.filter(v => v.id !== id));
+    } catch {
+      setVehicles(snapshot);
+      setError("Erro ao remover veículo");
+      throw new Error("delete_failed");
+    } finally {
+      setLoading(false);
+    }
   }
 
   // =======================
@@ -146,7 +175,7 @@ export function useVehicles() {
   }, []);
 
   // =======================
-  // SIGNALR — REALTIME
+  // SIGNALR
   // =======================
 
   useVehicleTracking({

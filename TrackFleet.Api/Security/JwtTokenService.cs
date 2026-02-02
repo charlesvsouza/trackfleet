@@ -29,7 +29,7 @@ public class JwtTokenService
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim("tenant_id", user.TenantId.ToString()),
             new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.Role, user.Role)
+            new Claim(ClaimTypes.Role, user.Role) // "admin" | "driver"
         };
 
         var key = new SymmetricSecurityKey(
@@ -55,22 +55,21 @@ public class JwtTokenService
 
     private DateTime ResolveExpiration(User user)
     {
-        // Driver tem expiração fixa de 12h
+        // Motorista tem expiração fixa de 12h
         if (IsDriver(user))
         {
             return DateTime.UtcNow.AddHours(DriverExpirationHours);
         }
 
-        // Demais perfis seguem configuração padrão
+        // Admin e demais perfis seguem configuração padrão
         return DateTime.UtcNow.AddMinutes(_settings.ExpirationMinutes);
     }
 
     private static bool IsDriver(User user)
     {
-        // Ajuste aqui caso use enum futuramente
         return string.Equals(
             user.Role,
-            "Driver",
+            "driver",
             StringComparison.OrdinalIgnoreCase);
     }
 }

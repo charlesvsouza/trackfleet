@@ -45,7 +45,9 @@ export function useVehicleTracking({ enabled = true, onPosition }: Options) {
       .start()
       .then(() => {
         started = true;
-        console.log("🟢 SignalR conectado (singleton)");
+        if (process.env.NODE_ENV === "development") {
+          console.log("🟢 SignalR conectado (singleton)");
+        }
       })
       .catch(err => {
         console.error("🔴 Erro SignalR:", err);

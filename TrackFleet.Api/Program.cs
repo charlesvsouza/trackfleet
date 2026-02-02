@@ -2,19 +2,18 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
 using Serilog;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 
-using TrackFleet.Api.Security;
 using TrackFleet.Api.Hubs;
-using TrackFleet.Api.Maps;
+using TrackFleet.Api.Security;
 using TrackFleet.Api.Services;
-
 using TrackFleet.Domain.Security;
 using TrackFleet.Infrastructure.Data;
 
@@ -47,6 +46,39 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 
 // ======================================================
+// BLINDAGEM DE BACKGROUND SERVICES 🔒
+// ======================================================
+
+builder.Services.Configure<HostOptions>(options =>
+{
+    options.BackgroundServiceExceptionBehavior =
+        BackgroundServiceExceptionBehavior.Ignore;
+});
+
+// ======================================================
+// JWT SETTINGS + BLINDAGEM 🔐
+// ======================================================
+
+// Bind explícito
+builder.Services.Configure<JwtSettings>(
+    builder.Configuration.GetSection("Jwt")
+);
+
+// Fail-fast de configuração
+var jwtConfig = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
+
+if (jwtConfig is null ||
+    string.IsNullOrWhiteSpace(jwtConfig.SecretKey) ||
+    string.IsNullOrWhiteSpace(jwtConfig.Issuer) ||
+    string.IsNullOrWhiteSpace(jwtConfig.Audience) ||
+    jwtConfig.ExpirationMinutes <= 0)
+{
+    throw new InvalidOperationException(
+        "JWT configuration is invalid. Check appsettings.json / appsettings.Development.json"
+    );
+}
+
+// ======================================================
 // CORE
 // ======================================================
 
@@ -54,16 +86,14 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantProvider, JwtTenantProvider>();
 builder.Services.AddScoped<GoogleTokenValidator>();
 
+builder.Services.AddSingleton<JwtTokenGenerator>();
+
 // ======================================================
 // TRACKING
 // ======================================================
 
 builder.Services.AddSingleton<VehiclePositionSimulator>();
 builder.Services.AddHostedService<VehicleTrackingBackgroundService>();
-
-builder.Services.Configure<GoogleMapsSettings>(
-    builder.Configuration.GetSection("GoogleMaps")
-);
 
 builder.Services.Configure<GoogleAuthSettings>(
     builder.Configuration.GetSection("GoogleAuth")
@@ -94,7 +124,7 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("PositionRateLimit", context =>
     {
         var userId =
-            context.User?.FindFirst("sub")?.Value ??
+            context.User?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value ??
             context.Connection.RemoteIpAddress?.ToString() ??
             "anonymous";
 
@@ -111,13 +141,13 @@ builder.Services.AddRateLimiter(options =>
 });
 
 // ======================================================
-// HEALTH CHECKS  ✅ CORREÇÃO CRÍTICA
+// HEALTH CHECKS
 // ======================================================
 
 builder.Services.AddHealthChecks();
 
 // ======================================================
-// CONTROLLERS
+// CONTROLLERS + AUTH GLOBAL
 // ======================================================
 
 builder.Services.AddControllers(options =>
@@ -146,33 +176,28 @@ builder.Services.AddDbContext<TrackFleetDbContext>(options =>
 builder.Services.AddSignalR();
 
 // ======================================================
-// JWT
+// JWT AUTH
 // ======================================================
-
-builder.Services.Configure<JwtSettings>(
-    builder.Configuration.GetSection("Jwt")
-);
-
-builder.Services.AddScoped<JwtTokenService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        var jwt = builder.Configuration
-            .GetSection("Jwt")
-            .Get<JwtSettings>()!;
-
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = jwt.Issuer,
-            ValidAudience = jwt.Audience,
+
+            ValidIssuer = jwtConfig!.Issuer,
+            ValidAudience = jwtConfig.Audience,
+
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(jwt.SecretKey)
-            )
+                Encoding.UTF8.GetBytes(jwtConfig.SecretKey)
+            ),
+
+            NameClaimType = JwtRegisteredClaimNames.Sub,
+            RoleClaimType = ClaimTypes.Role
         };
 
         options.Events = new JwtBearerEvents
@@ -198,6 +223,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // ======================================================
 
 var app = builder.Build();
+
+// ======================================================
+// DB INIT (DEV ONLY)
+// ======================================================
+
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<TrackFleetDbContext>();
+    await DbInitializer.InitializeAsync(db);
+}
 
 // ======================================================
 // PIPELINE

@@ -1,53 +1,59 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using TrackFleet.Api.Dtos;
 using TrackFleet.Api.Security;
 using TrackFleet.Infrastructure.Data;
+
+namespace TrackFleet.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
 public class AuthController : ControllerBase
 {
-    private readonly TrackFleetDbContext _context;
-    private readonly JwtTokenService _jwt;
+    private readonly TrackFleetDbContext _dbContext;
+    private readonly JwtTokenGenerator _jwtTokenGenerator;
 
     public AuthController(
-        TrackFleetDbContext context,
-        JwtTokenService jwt)
+        TrackFleetDbContext dbContext,
+        JwtTokenGenerator jwtTokenGenerator)
     {
-        _context = context;
-        _jwt = jwt;
+        _dbContext = dbContext;
+        _jwtTokenGenerator = jwtTokenGenerator;
     }
 
-    // ==================================================
-    // LOGIN EMAIL / SENHA (ADMIN / WEB)
-    // ==================================================
     [AllowAnonymous]
     [HttpPost("login")]
-    public async Task<IActionResult> Login(
-        [FromBody] LoginRequestDto dto)
+    public async Task<ActionResult<LoginResponse>> Login(
+        [FromBody] LoginRequest request)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
-        var user = await _context.Users
+        var user = await _dbContext.Users
             .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(u =>
-                u.Email == dto.Email &&
-                u.IsActive);
+            .FirstOrDefaultAsync(u => u.Email.ToLower() == request.Email.ToLower());
 
         if (user is null)
-            return Unauthorized("Credenciais inválidas.");
+            return Unauthorized();
 
-        if (string.IsNullOrEmpty(user.PasswordHash))
-            return Unauthorized("Usuário não possui login por senha.");
+        if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+            return Unauthorized();
 
-        if (!user.VerifyPassword(dto.Password))
-            return Unauthorized("Credenciais inválidas.");
+        var (token, expiresAtUtc) = _jwtTokenGenerator.Generate(user);
 
-        var (token, expires) = _jwt.Generate(user);
-
-        return Ok(new LoginResponseDto(token, expires));
+        return Ok(new LoginResponse
+        {
+            Token = token,
+            ExpiresAtUtc = expiresAtUtc,
+            User = new UserDto
+            {
+                Id = user.Id,
+                Email = user.Email,
+                Role = user.Role
+            }
+        });
     }
+}
+
+public sealed class LoginRequest
+{
+    public string Email { get; set; } = default!;
+    public string Password { get; set; } = default!;
 }

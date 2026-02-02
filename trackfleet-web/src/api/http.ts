@@ -1,36 +1,47 @@
 // src/api/http.ts
-
 import axios from "axios";
 
+// URL base da API
+const baseURL = import.meta.env.VITE_API_URL || "http://localhost:5249";
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL
+  baseURL,
+  // Opcional: headers padrão
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
-// 🔐 Interceptor de REQUEST: injeta o token
-api.interceptors.request.use(config => {
-  const token = localStorage.getItem("token");
+// =======================
+// INTERCEPTOR JWT
+// =======================
+api.interceptors.request.use(
+  (config) => {
+    // CORREÇÃO: Usando a MESMA chave que o AuthContext usa ("access_token")
+    const token = localStorage.getItem("access_token");
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
-  return config;
-});
-
-// 🚨 Interceptor de RESPONSE: trata token expirado (401)
-api.interceptors.response.use(
-  response => response,
-  error => {
-    if (error.response?.status === 401) {
-      // Remove token inválido
-      localStorage.removeItem("token");
-
-      // Evita loop se já estiver no login
-      if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
-      }
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
 
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// (Opcional) Interceptor de Resposta para tratar token expirado automaticamente
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token expirou ou inválido -> Limpa e força logout
+      // Cuidado para não criar loop infinito de redirects
+      console.warn("Sessão expirada ou inválida (401)");
+      // localStorage.removeItem("access_token");
+      // window.location.href = "/login"; 
+    }
     return Promise.reject(error);
   }
 );

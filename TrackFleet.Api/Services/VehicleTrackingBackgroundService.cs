@@ -1,59 +1,78 @@
-﻿using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
-using TrackFleet.Api.Hubs;
-using TrackFleet.Api.Services;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using TrackFleet.Infrastructure.Data;
 
-namespace TrackFleet.Api.Services
+namespace TrackFleet.Api.Services;
+
+public class VehicleTrackingBackgroundService : BackgroundService
 {
-    public class VehicleTrackingBackgroundService : BackgroundService
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<VehicleTrackingBackgroundService> _logger;
+
+    // Intervalo entre ciclos normais
+    private static readonly TimeSpan LoopDelay = TimeSpan.FromSeconds(5);
+
+    // Intervalo após erro (backoff simples)
+    private static readonly TimeSpan ErrorDelay = TimeSpan.FromSeconds(15);
+
+    public VehicleTrackingBackgroundService(
+        IServiceScopeFactory scopeFactory,
+        ILogger<VehicleTrackingBackgroundService> logger)
     {
-        private readonly IServiceScopeFactory _scopeFactory;
-        private readonly IHubContext<TrackingHub> _hubContext;
-        private readonly VehiclePositionSimulator _simulator;
+        _scopeFactory = scopeFactory;
+        _logger = logger;
+    }
 
-        private const int IntervalSeconds = 5;
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        _logger.LogInformation("🚀 VehicleTrackingBackgroundService iniciado");
 
-        public VehicleTrackingBackgroundService(
-            IServiceScopeFactory scopeFactory,
-            IHubContext<TrackingHub> hubContext,
-            VehiclePositionSimulator simulator)
+        while (!stoppingToken.IsCancellationRequested)
         {
-            _scopeFactory = scopeFactory;
-            _hubContext = hubContext;
-            _simulator = simulator;
-        }
-
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-        {
-            while (!stoppingToken.IsCancellationRequested)
+            try
             {
                 using var scope = _scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<TrackFleetDbContext>();
 
-                var vehicles = await db.Vehicles
+                // ⚠️ Exemplo seguro: apenas leitura leve
+                var activeVehicles = await db.Vehicles
                     .AsNoTracking()
+                    .Where(v => v.IsActive)
                     .Select(v => v.Id)
                     .ToListAsync(stoppingToken);
 
-                foreach (var vehicleId in vehicles)
+                _logger.LogDebug(
+                    "📡 Tracking ativo para {Count} veículos",
+                    activeVehicles.Count
+                );
+
+                await Task.Delay(LoopDelay, stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // Encerramento gracioso
+                _logger.LogInformation("🛑 VehicleTrackingBackgroundService finalizado");
+                break;
+            }
+            catch (Exception ex)
+            {
+                // 🔥 ERRO NÃO DERRUBA A API
+                _logger.LogError(
+                    ex,
+                    "❌ Erro no VehicleTrackingBackgroundService. Tentando novamente em {Delay}s",
+                    ErrorDelay.TotalSeconds
+                );
+
+                try
                 {
-                    var position = _simulator.GetNextPosition(vehicleId);
-
-                    await _hubContext.Clients.All.SendAsync(
-                        "vehiclePositionUpdated",
-                        new
-                        {
-                            vehicleId,
-                            lat = position.Lat,
-                            lng = position.Lng,
-                            timestamp = position.Timestamp
-                        },
-                        cancellationToken: stoppingToken
-                    );
+                    await Task.Delay(ErrorDelay, stoppingToken);
                 }
-
-                await Task.Delay(TimeSpan.FromSeconds(IntervalSeconds), stoppingToken);
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
             }
         }
     }

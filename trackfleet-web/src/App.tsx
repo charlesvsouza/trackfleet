@@ -1,11 +1,9 @@
-import AppRoutes from "./routes";
-import { AuthProvider } from "./auth/AuthContext";
+import { AppRoutes } from "./routes/AppRoutes"; // Ajuste o import conforme sua pasta real
 
 function App() {
+  // REMOVIDO: <AuthProvider> (Já está no main.tsx)
   return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
+    <AppRoutes />
   );
 }
 
