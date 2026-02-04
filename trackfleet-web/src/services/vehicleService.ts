@@ -1,43 +1,42 @@
-// src/services/vehicleService.ts
+import api from './api';
 
-import {
-  getVehicles,
-  createVehicle,
-  updateVehicle,
-  deleteVehicle
-} from "@/api/vehicles.api";
+export interface Vehicle {
+  id: string;
+  plate: string;
+  model: string;
+  imei: string; // Importante para o rastreador
+  status: 'Active' | 'Maintenance' | 'Inactive';
+  lastLatitude?: number;
+  lastLongitude?: number;
+}
 
-import { Vehicle, CreateVehicleDTO } from "@/features/vehicles/types";
+export interface CreateVehicleDto {
+  plate: string;
+  model: string;
+  imei: string;
+  status: string;
+}
 
-export const vehicleService = {
-  // =======================
-  // LISTAR
-  // =======================
-  async list(): Promise<Vehicle[]> {
-    return getVehicles();
+const vehicleService = {
+  getAll: async () => {
+    const response = await api.get<Vehicle[]>('/vehicles');
+    return response.data;
   },
 
-  // =======================
-  // CRIAR
-  // =======================
-  async create(payload: CreateVehicleDTO): Promise<Vehicle> {
-    return createVehicle(payload);
+  create: async (data: CreateVehicleDto) => {
+    const response = await api.post<Vehicle>('/vehicles', data);
+    return response.data;
   },
 
-  // =======================
-  // ATUALIZAR
-  // =======================
-  async update(
-    id: string,
-    payload: CreateVehicleDTO
-  ): Promise<Vehicle> {
-    return updateVehicle(id, payload);
+  update: async (id: string, data: Partial<CreateVehicleDto>) => {
+    // Ajuste conforme seu backend (pode ser PUT ou PATCH)
+    const response = await api.put<Vehicle>(`/vehicles/${id}`, data);
+    return response.data;
   },
 
-  // =======================
-  // REMOVER
-  // =======================
-  async remove(id: string): Promise<void> {
-    await deleteVehicle(id);
+  delete: async (id: string) => {
+    await api.delete(`/vehicles/${id}`);
   }
 };
+
+export default vehicleService;

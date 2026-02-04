@@ -1,24 +1,40 @@
-import axios from "axios";
+import api from './api';
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
-});
-
-export type LoginRequest = {
+// Tipos baseados no que seu Backend espera e retorna
+export interface LoginRequest {
   email: string;
-  password: string;
-};
-
-export type LoginResponse = {
-  token: string;
-  expiresAtUtc: string;
-};
-
-export async function login(request: LoginRequest): Promise<LoginResponse> {
-  const response = await api.post<LoginResponse>(
-    "/api/auth/login",
-    request
-  );
-
-  return response.data;
+  password?: string; // Opcional se for Google, mas aqui focaremos no login normal
 }
+
+export interface AuthResponse {
+  token: string;
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+  };
+}
+
+const authService = {
+  // Chama o endpoint POST /api/auth/login
+  login: async (credentials: LoginRequest): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/login', credentials);
+    return response.data;
+  },
+
+  // Logout apenas limpa localmente
+  logout: () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  },
+  
+  // Verifica se tem token salvo
+  getCurrentUser: () => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) return JSON.parse(userStr);
+    return null;
+  }
+};
+
+export default authService;

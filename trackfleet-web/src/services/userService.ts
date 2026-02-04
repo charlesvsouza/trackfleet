@@ -1,30 +1,37 @@
-import {
-  getUsers,
-  createUser,
-  updateUserRole,
-  toggleUserStatus,
-  UserDto
-} from "@/api/users.api";
+import api from './api';
 
-export const userService = {
-  list(): Promise<UserDto[]> {
-    return getUsers();
+// Interfaces exportadas individualmente
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: 'Admin' | 'Driver' | 'User';
+  isActive: boolean;
+}
+
+export interface CreateUserDto {
+  name: string;
+  email: string;
+  password?: string;
+  role: string;
+}
+
+// Objeto do serviço
+const userService = {
+  getAll: async () => {
+    const response = await api.get<User[]>('/users');
+    return response.data;
   },
 
-  create(payload: {
-    email: string;
-    fullName: string;
-    role: string;
-    password?: string;
-  }): Promise<UserDto> {
-    return createUser(payload);
+  create: async (data: CreateUserDto) => {
+    const response = await api.post<User>('/users', data);
+    return response.data;
   },
 
-  updateRole(id: string, role: string): Promise<void> {
-    return updateUserRole(id, role);
-  },
-
-  toggleStatus(id: string): Promise<void> {
-    return toggleUserStatus(id);
+  delete: async (id: string) => {
+    await api.delete(`/users/${id}`);
   }
 };
+
+// 🔥 A CORREÇÃO ESTÁ AQUI EMBAIXO:
+export default userService;

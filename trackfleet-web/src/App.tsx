@@ -3,16 +3,20 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Layout
 import MainLayout from './components/Layout/MainLayout';
-import ProtectedRoute from './routes/PrivateRoute'; // Confirme o caminho na sua pasta routes
+import ProtectedRoute from './routes/PrivateRoute';
 
-// Páginas
+// Páginas Reais
 import LoginPage from './pages/LoginPage';
-import MapScreen from './screens/MapScreen'; // A tela do Mapa que criamos
-import AdminUsersPage from './pages/AdminUsersPage'; // A tela de usuários que já funcionou
+import MapScreen from './screens/MapScreen';
+import AdminUsersPage from './pages/AdminUsersPage';
+import VehiclesPage from './pages/VehiclesPage'; // <--- Nova Importação
 
-// Placeholder para páginas futuras (para não dar erro)
+// Placeholder apenas para as telas que faltam
 const PlaceholderPage = ({ title }: { title: string }) => (
-  <div style={{ padding: 20 }}><h1>{title}</h1><p>Em construção...</p></div>
+  <div style={{ padding: 20 }}>
+    <h1>{title}</h1>
+    <p>Em construção...</p>
+  </div>
 );
 
 function App() {
@@ -20,22 +24,25 @@ function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
 
-      {/* Rotas Protegidas com Layout */}
+      {/* Rotas Protegidas (Exigem Login) */}
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
             
-            {/* Home = Mapa */}
+            {/* Dashboard / Mapa */}
             <Route path="/" element={<MapScreen />} />
             
-            {/* Outras Telas */}
+            {/* Cadastros */}
             <Route path="/users" element={<AdminUsersPage />} />
-            <Route path="/vehicles" element={<PlaceholderPage title="Veículos" />} />
-            <Route path="/services" element={<PlaceholderPage title="Serviços" />} />
+            <Route path="/vehicles" element={<VehiclesPage />} /> {/* <--- Rota Atualizada */}
+            
+            {/* Futuro */}
+            <Route path="/services" element={<PlaceholderPage title="Serviços e Manutenção" />} />
             <Route path="/financial" element={<PlaceholderPage title="Financeiro" />} />
 
         </Route>
       </Route>
 
+      {/* Rota pega-tudo redireciona para Home */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

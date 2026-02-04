@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import authService, { LoginRequest } from '../services/authService';
 
-// Tipagem básica do usuário e contexto
 interface User {
   id: string;
   email: string;
@@ -12,44 +12,45 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (token: string, userData: User) => void;
+  login: (credentials: LoginRequest) => Promise<void>; // Agora aceita email/senha
   logout: () => void;
 }
 
-// 🔥 CORREÇÃO AQUI: Adicionei 'export' antes de const AuthContext
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Provider
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Tenta recuperar sessão salva
-    const storedToken = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
-
-    if (storedToken && storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        console.error("Erro ao parsear usuário:", e);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-      }
+    const token = localStorage.getItem('token');
+    
+    if (storedUser && token) {
+      setUser(JSON.parse(storedUser));
     }
     setIsLoading(false);
   }, []);
 
-  const login = (token: string, userData: User) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
+  // Login REAL
+  const login = async (credentials: LoginRequest) => {
+    try {
+      const data = await authService.login(credentials);
+      
+      // Salva no LocalStorage
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      
+      // Atualiza Estado
+      setUser(data.user);
+    } catch (error) {
+      console.error("Erro no login:", error);
+      throw error; // Repassa o erro para a tela de login mostrar msg
+    }
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    authService.logout();
     setUser(null);
   };
 
@@ -60,14 +61,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// Hook personalizado
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth deve ser usado dentro de um AuthProvider');
-  }
+  if (!context) throw new Error('useAuth deve ser usado dentro de um AuthProvider');
   return context;
 };
 
-// Export padrão
 export default AuthContext;

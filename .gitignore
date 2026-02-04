@@ -1,7 +1,6 @@
 # ============================
-# .NET / Visual Studio
+# .NET / Backend (Visual Studio)
 # ============================
-
 bin/
 obj/
 .vs/
@@ -10,82 +9,41 @@ obj/
 *.suo
 *.userosscache
 *.sln.docstates
-
-# Rider / JetBrains
-.idea/
-*.iml
-
-# ============================
-# Logs
-# ============================
-
-*.log
-logs/
-log/
-
-# ============================
-# Secrets / Configuração local
-# ============================
-
 appsettings.Development.json
 appsettings.Local.json
-appsettings.*.local.json
 secrets.json
-
-# ============================
-# Environment / OS
-# ============================
-
-.env
-.env.*
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# ============================
-# Certificados / Chaves
-# ============================
-
 *.pfx
-*.pem
-*.key
-*.crt
 
 # ============================
-# Testes / Coverage
+# Node / Frontend (React)
 # ============================
-
-TestResults/
-coverage/
-coverage.xml
-
-# ============================
-# Publicação / Deploy
-# ============================
-
-publish/
-artifacts/
-dist/
-
-# ============================
-# Docker
-# ============================
-
-docker-compose.override.yml
-
-# ============================
-# Node / Frontend (se houver)
-# ============================
-
 node_modules/
+dist/
+dist-ssr/
+build/
+*.local
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+
+# ============================
+# Logs & Sistema
+# ============================
+logs/
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
+.env
+.idea/
 
 # ============================
 # Outros
 # ============================
-
-*.tmp
+TestResults/
+coverage/
+publish/
+docker-compose.override.yml
 *.bak
 *.swp

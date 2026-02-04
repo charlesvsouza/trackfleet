@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-// Ajuste para o caminho correto do nosso contexto
 import { useAuth } from "../contexts/AuthContext"; 
 
 function LoginPage() {
-  const { login, isLoading } = useAuth(); // useAuth retorna isLoading, não loading
+  const { login, isLoading } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
@@ -16,24 +15,16 @@ function LoginPage() {
     setError(null);
 
     try {
-      // O login do contexto espera (token, userData). 
-      // Como estamos simulando, vou passar dados fictícios aqui para você testar a tela.
-      // Numa API real, você faria o fetch aqui e passaria o resultado.
-      const mockUser = {
-        id: "1",
-        email: email,
-        name: "Usuário Teste",
-        role: "Admin"
-      };
-      
-      // Simula token
-      login("token-falso-123", mockUser);
+      // 🔥 AGORA É REAL: Passa o objeto com as credenciais
+      await login({ email, password });
 
+      // Se não der erro, redireciona para a Home (Mapa)
       navigate("/", { replace: true });
       
     } catch (err) {
-      setError("Falha ao entrar. Verifique console.");
-      console.error(err);
+      console.error("Erro no login:", err);
+      // Mensagem genérica para segurança, ou personalizada se o backend retornar detalhes
+      setError("Email ou senha inválidos.");
     }
   }
 
@@ -64,6 +55,7 @@ function LoginPage() {
               disabled={isLoading}
               onChange={(e) => setEmail(e.target.value)}
               required
+              placeholder="admin@trackfleet.com"
               style={{ width: "100%", padding: "10px", borderRadius: "4px", border: "1px solid #ccc", boxSizing: "border-box" }}
             />
           </div>
@@ -76,6 +68,7 @@ function LoginPage() {
               disabled={isLoading}
               onChange={(e) => setPassword(e.target.value)}
               required
+              placeholder="******"
               style={{ width: "100%", padding: "10px", borderRadius: "4px", border: "1px solid #ccc", boxSizing: "border-box" }}
             />
           </div>
@@ -91,15 +84,16 @@ function LoginPage() {
               borderRadius: "4px", 
               cursor: "pointer",
               fontWeight: "bold",
-              marginTop: "10px"
+              marginTop: "10px",
+              opacity: isLoading ? 0.7 : 1
             }}
           >
-            {isLoading ? "Entrando..." : "Acessar Painel"}
+            {isLoading ? "Validando..." : "Acessar Painel"}
           </button>
         </form>
 
         {error && (
-          <p style={{ color: "#d32f2f", textAlign: "center", marginTop: "16px", fontSize: "14px" }}>
+          <p style={{ color: "#d32f2f", textAlign: "center", marginTop: "16px", fontSize: "14px", fontWeight: "bold" }}>
             {error}
           </p>
         )}
@@ -108,5 +102,4 @@ function LoginPage() {
   );
 }
 
-// 🔥 ISSO RESOLVE O ERRO DO APP.TSX
 export default LoginPage;

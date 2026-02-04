@@ -5,9 +5,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using System.Text;
-using TrackFleet.Api.Hubs;          // <--- Importante
-using TrackFleet.Api.Security;
+using TrackFleet.Api.Hubs;
+using TrackFleet.Api.Security; // <--- Onde está o JwtTenantProvider
 using TrackFleet.Api.Workers;
+using TrackFleet.Domain.Security; // <--- Onde está a Interface ITenantProvider
 using TrackFleet.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -44,22 +45,23 @@ if (string.IsNullOrEmpty(secretKey)) throw new Exception("JWT SecretKey não enc
 // ======================================================
 // SERVICES
 // ======================================================
-builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpContextAccessor(); // Essencial para o TenantProvider
 builder.Services.AddSingleton<JwtTokenGenerator>();
 
-// 🔥 ONDE O ERRO ESTAVA: Faltava adicionar o SignalR aqui!
-builder.Services.AddSignalR();
+// 🔥 CORREÇÃO: REGISTRANDO O TENANT PROVIDER
+builder.Services.AddScoped<ITenantProvider, JwtTenantProvider>();
 
+builder.Services.AddSignalR();
 builder.Services.AddHostedService<TcpGpsListener>();
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("DevCors", policy =>
     {
-        policy.WithOrigins("http://localhost:5173") // Ajuste se seu frontend rodar em outra porta
+        policy.WithOrigins("http://localhost:5173")
               .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials(); // SignalR exige AllowCredentials
+              .AllowCredentials();
     });
 });
 
@@ -89,7 +91,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
         };
 
-        // Configuração especial para SignalR (passa o token na URL)
         options.Events = new JwtBearerEvents
         {
             OnMessageReceived = context =>
@@ -115,10 +116,26 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-// 🔥 E faltava mapear a rota do Hub aqui!
 app.MapHub<TrackingHub>("/tracking");
 
 app.MapGet("/", () => "TrackFleet API Online 🚀");
+
+// ======================================================
+// DATABASE SEED
+// ======================================================
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<TrackFleetDbContext>();
+        DbInitializer.Initialize(context);
+        Log.Information("✅ Banco de dados inicializado e verificado!");
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "❌ Erro ao inicializar o banco de dados.");
+    }
+}
 
 app.Run();
