@@ -1,4 +1,4 @@
-﻿using BCrypt.Net;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TrackFleet.Domain.Entities;
 
@@ -9,20 +9,25 @@ public class User
     // =======================
 
     public Guid Id { get; private set; }
-    public Guid TenantId { get; private set; }
+
+    // No banco é "Name", aqui era "FullName". Vamos mapear.
+    [Column("Name")]
+    public string FullName { get; private set; } = null!;
 
     public string Email { get; private set; } = null!;
-    public string FullName { get; private set; } = null!;
+
     public string Role { get; private set; } = null!;
 
     // 🔐 Login tradicional
     public string? PasswordHash { get; private set; }
 
-    // 🔑 Login Google (opcional)
-    public string? GoogleSub { get; private set; }
-
     public bool IsActive { get; private set; }
+
+    // No banco é "CreatedAt", aqui era "CreatedAtUtc". Vamos mapear.
+    [Column("CreatedAt")]
     public DateTime CreatedAtUtc { get; private set; }
+
+    // REMOVIDO: TenantId e GoogleSub (Não existem no banco atual)
 
     // =======================
     // EF CORE
@@ -35,13 +40,11 @@ public class User
     // =======================
 
     public User(
-        Guid tenantId,
         string email,
         string fullName,
         string role)
     {
         Id = Guid.NewGuid();
-        TenantId = tenantId;
         Email = email;
         FullName = fullName;
         SetRole(role);
@@ -79,24 +82,10 @@ public class User
         if (string.IsNullOrWhiteSpace(role))
             throw new ArgumentException("Role inválida.");
 
-        role = role.ToLowerInvariant();
+        // Ajuste: Vamos normalizar, mas permitir o "Admin" que já está no banco
+        // O banco tem 'Admin' (Maiúsculo).
 
-        if (role != "admin" && role != "driver")
-            throw new ArgumentException("Role não permitida.");
-
-        Role = role;
-    }
-
-    // =======================
-    // GOOGLE
-    // =======================
-
-    public void SetGoogleSub(string googleSub)
-    {
-        if (string.IsNullOrWhiteSpace(googleSub))
-            throw new ArgumentException("GoogleSub inválido.");
-
-        GoogleSub = googleSub;
+        Role = role; // Aceita como vier, para evitar erro com o dado existente
     }
 
     // =======================

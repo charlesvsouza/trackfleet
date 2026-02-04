@@ -1,140 +1,73 @@
-import { createContext, useEffect, useState } from "react";
-import api from "@/services/api";
-import { jwtDecode } from "jwt-decode";
-import type { LoginResponse, User } from "../auth/types";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-// Tipagem exportada para uso no useAuth
-export type AuthContextType = {
-  user: User | null;
-  loading: boolean;
-  login: (email: string, password: string) => Promise<User>;
-  logout: () => void;
-  isAuthenticated: boolean; // Adicionei para facilitar os guards
-};
-
-export const AuthContext = createContext<AuthContextType | undefined>(
-  undefined
-);
-
-// Interface flexível para o Payload do JWT
-interface JwtPayload {
-  sub: string;
+// Tipagem básica do usuário e contexto
+interface User {
+  id: string;
   email: string;
-  tenant_id: string;
-  role?: string | string[]; // Pode ser string ou array
-  "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"?: string | string[];
-  exp?: number;
+  name: string;
+  role: string;
 }
 
-function buildUserFromToken(token: string): User {
-  try {
-    const decoded = jwtDecode<JwtPayload>(token);
-    
-    // Tenta encontrar a role em vários lugares comuns
-    let roleClaim = 
-      decoded.role || 
-      decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
-
-    // Se a role vier como Array (ex: ["Admin", "User"]), pega a primeira
-    const userRole = Array.isArray(roleClaim) ? roleClaim[0] : roleClaim;
-
-    // Se mesmo assim não achar, fallback para 'User' para não quebrar o app
-    const finalRole = userRole || "User"; 
-
-    return {
-      id: decoded.sub || "unknown-id",
-      email: decoded.email || "unknown-email",
-      role: finalRole,
-      tenantId: decoded.tenant_id || "unknown-tenant",
-    };
-  } catch (error) {
-    console.error("Erro ao decodificar token:", error);
-    throw new Error("Token inválido");
-  }
+interface AuthContextType {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (token: string, userData: User) => void;
+  logout: () => void;
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+// 🔥 CORREÇÃO AQUI: Adicionei 'export' antes de const AuthContext
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Provider
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
+    // Tenta recuperar sessão salva
+    const storedToken = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
 
-    if (token) {
+    if (storedToken && storedUser) {
       try {
-        const userFromToken = buildUserFromToken(token);
-        
-        // Verifica validade (opcional)
-        const decoded = jwtDecode<JwtPayload>(token);
-        const isExpired = decoded.exp ? decoded.exp * 1000 < Date.now() : false;
-
-        if (!isExpired) {
-          api.defaults.headers.common.Authorization = `Bearer ${token}`;
-          setUser(userFromToken);
-        } else {
-          console.warn("Token expirado no boot");
-          logout();
-        }
-      } catch (err) {
-        console.error("Falha ao restaurar sessão:", err);
-        logout();
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        console.error("Erro ao parsear usuário:", e);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
       }
     }
-
-    setLoading(false);
+    setIsLoading(false);
   }, []);
 
-  async function login(email: string, password: string): Promise<User> {
-    try {
-      const response = await api.post<LoginResponse>("/api/auth/login", {
-        email,
-        password,
-      });
+  const login = (token: string, userData: User) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
+  };
 
-      // DEBUG: Veja no console o que o backend devolveu
-      console.log("Resposta do Login:", response.data);
-
-      // Tenta pegar 'token' OU 'accessToken' (compatibilidade)
-      // @ts-ignore (para permitir acesso dinâmico se a tipagem for estrita)
-      const token = response.data.token || response.data.accessToken;
-
-      if (!token) {
-        throw new Error("Backend não retornou um token válido!");
-      }
-
-      const userFromToken = buildUserFromToken(token);
-
-      localStorage.setItem("access_token", token);
-      localStorage.setItem("user", JSON.stringify(userFromToken)); // Opcional
-
-      api.defaults.headers.common.Authorization = `Bearer ${token}`;
-      setUser(userFromToken);
-
-      return userFromToken;
-    } catch (error) {
-      console.error("Erro no Login:", error);
-      throw error;
-    }
-  }
-
-  function logout() {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("user");
+  const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setUser(null);
-    delete api.defaults.headers.common.Authorization;
-  }
+  };
 
   return (
-    <AuthContext.Provider 
-      value={{ 
-        user, 
-        loading, 
-        login, 
-        logout,
-        isAuthenticated: !!user 
-      }}
-    >
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
-}
+};
+
+// Hook personalizado
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth deve ser usado dentro de um AuthProvider');
+  }
+  return context;
+};
+
+// Export padrão
+export default AuthContext;

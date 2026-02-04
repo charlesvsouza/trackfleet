@@ -1,52 +1,59 @@
-// src/map/markerSvg.ts
-
 export interface VehicleMarkerSvg {
   root: SVGSVGElement;
-  setRotation: (deg: number) => void;
+  // Adicionei a função update que faltava
+  update: (params: { heading: number; moving: boolean; selected: boolean }) => void;
 }
 
 export function createVehicleSvg(): VehicleMarkerSvg {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("width", "36");
-  svg.setAttribute("height", "36");
-  svg.setAttribute("viewBox", "0 0 36 36");
+  svg.setAttribute("width", "40");
+  svg.setAttribute("height", "40");
+  svg.setAttribute("viewBox", "0 0 40 40");
 
-  // 🔁 Grupo rotacionável (NUNCA recriado)
   const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  g.setAttribute(
-    "transform",
-    "translate(18 18) rotate(0) translate(-18 -18)"
-  );
+  g.setAttribute("transform", "translate(20 20) rotate(0) translate(-20 -20)");
 
-  // Corpo do veículo
-  const body = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  body.setAttribute(
-    "d",
-    "M18 2c-5 0-9 4-9 9v10c0 2 1 3 3 3h12c2 0 3-1 3-3V11c0-5-4-9-9-9z"
-  );
-  body.setAttribute("fill", "#1976d2");
-  body.setAttribute("stroke", "#0d47a1");
-  body.setAttribute("stroke-width", "1.5");
+  // Círculo de fundo (muda de cor se selecionado/andando)
+  const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  circle.setAttribute("cx", "20");
+  circle.setAttribute("cy", "20");
+  circle.setAttribute("r", "18");
+  circle.setAttribute("fill", "#ffffff");
+  circle.setAttribute("stroke", "#333");
+  circle.setAttribute("stroke-width", "2");
 
-  // Direção / heading
+  // Seta de direção
   const arrow = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  arrow.setAttribute("d", "M18 6l4 6h-8z");
-  arrow.setAttribute("fill", "#ffffff");
+  arrow.setAttribute("d", "M20 5 L35 35 L20 28 L5 35 Z"); // Formato de seta
+  arrow.setAttribute("fill", "#1976d2");
 
-  g.appendChild(body);
+  g.appendChild(circle);
   g.appendChild(arrow);
   svg.appendChild(g);
 
-  // 🔧 API de mutação (ETAPA 9)
-  function setRotation(deg: number) {
-    g.setAttribute(
-      "transform",
-      `translate(18 18) rotate(${deg}) translate(-18 -18)`
-    );
+  // --- Função UPDATE que faltava ---
+  function update({ heading, moving, selected }: { heading: number; moving: boolean; selected: boolean }) {
+    // 1. Rotação
+    g.setAttribute("transform", `translate(20 20) rotate(${heading}) translate(-20 -20)`);
+
+    // 2. Cor baseada no status
+    if (selected) {
+        circle.setAttribute("stroke", "#ff9800"); // Laranja se selecionado
+        circle.setAttribute("stroke-width", "4");
+    } else {
+        circle.setAttribute("stroke", "#333");
+        circle.setAttribute("stroke-width", "2");
+    }
+
+    if (moving) {
+        arrow.setAttribute("fill", "#2e7d32"); // Verde se andando
+    } else {
+        arrow.setAttribute("fill", "#d32f2f"); // Vermelho se parado
+    }
   }
 
   return {
     root: svg,
-    setRotation
+    update // Retorna a função
   };
 }

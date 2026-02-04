@@ -1,50 +1,53 @@
-﻿using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
+﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.IdentityModel.Tokens;
 using TrackFleet.Domain.Entities;
 
 namespace TrackFleet.Api.Security;
 
-public sealed class JwtTokenGenerator
+public class JwtTokenGenerator
 {
-    private readonly JwtSettings _settings;
+    private readonly IConfiguration _configuration;
 
-    public JwtTokenGenerator(IOptions<JwtSettings> options)
+    public JwtTokenGenerator(IConfiguration configuration)
     {
-        _settings = options.Value;
+        _configuration = configuration;
     }
 
-    public (string token, DateTime expiresAtUtc) Generate(User user)
+    public (string Token, DateTime ExpiresAtUtc) Generate(User user)
     {
+        // Pega a chave secreta do appsettings.json
+        var secretKey = _configuration["JwtSettings:SecretKey"];
+
+        if (string.IsNullOrEmpty(secretKey))
+            throw new InvalidOperationException("JwtSettings:SecretKey não está configurada.");
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
         var claims = new List<Claim>
         {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim("tenant_id", user.TenantId.ToString()),
-            new Claim("role", user.Role) // 👈 IMPORTANTE
+            new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new(JwtRegisteredClaimNames.Email, user.Email),
+            new("role", user.Role), // Role simples
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
-        var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(_settings.SecretKey)
-        );
+        var expiresAt = DateTime.UtcNow.AddHours(8);
 
-        var credentials = new SigningCredentials(
-            key,
-            SecurityAlgorithms.HmacSha256
-        );
+        var tokenDescriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(claims),
+            Expires = expiresAt,
+            SigningCredentials = credentials,
+            Issuer = "TrackFleet",
+            Audience = "TrackFleet"
+        };
 
-        var expires = DateTime.UtcNow.AddMinutes(_settings.ExpirationMinutes);
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var token = tokenHandler.CreateToken(tokenDescriptor);
 
-        var token = new JwtSecurityToken(
-            issuer: _settings.Issuer,
-            audience: _settings.Audience,
-            claims: claims,
-            expires: expires,
-            signingCredentials: credentials
-        );
-
-        return (new JwtSecurityTokenHandler().WriteToken(token), expires);
+        return (tokenHandler.WriteToken(token), expiresAt);
     }
 }

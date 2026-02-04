@@ -1,158 +1,82 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using TrackFleet.Api.Extensions;
 using TrackFleet.Domain.Entities;
+using TrackFleet.Domain.Security;
 using TrackFleet.Infrastructure.Data;
 
 namespace TrackFleet.Api.Controllers;
 
 [ApiController]
-[Route("api/vehicles")]
-[Authorize(Roles = "admin")]
+[Route("api/[controller]")]
+[Authorize]
 public class VehiclesController : ControllerBase
 {
     private readonly TrackFleetDbContext _context;
+    private readonly ITenantProvider _tenantProvider;
 
-    public VehiclesController(TrackFleetDbContext context)
+    public VehiclesController(TrackFleetDbContext context, ITenantProvider tenantProvider)
     {
         _context = context;
+        _tenantProvider = tenantProvider;
     }
 
-    // =======================
-    // LIST
-    // =======================
-
+    // GET: api/vehicles
     [HttpGet]
-    public async Task<IActionResult> GetVehicles()
+    public async Task<IActionResult> GetAll()
     {
-        var tenantId = User.GetTenantId();
-
         var vehicles = await _context.Vehicles
             .AsNoTracking()
-            .Where(v => v.TenantId == tenantId && v.IsActive)
-            .Select(v => new
-            {
-                v.Id,
-                Plate = v.Plate
-            })
-            .OrderBy(v => v.Plate)
             .ToListAsync();
 
         return Ok(vehicles);
     }
 
-    // =======================
-    // AVAILABLE (DRIVER)
-    // =======================
-
-    [HttpGet("available")]
-    [Authorize(Roles = "driver")]
-    public async Task<IActionResult> GetAvailableVehicles()
-    {
-        var tenantId = User.GetTenantId();
-
-        var vehicles = await _context.Vehicles
-            .AsNoTracking()
-            .Where(v => v.TenantId == tenantId && v.IsActive)
-            .Where(v =>
-                !_context.TrackingSessions.Any(s =>
-                    s.VehicleId == v.Id && s.IsActive))
-            .Select(v => new
-            {
-                v.Id,
-                Plate = v.Plate
-            })
-            .OrderBy(v => v.Plate)
-            .ToListAsync();
-
-        return Ok(vehicles);
-    }
-
-    // =======================
-    // CREATE
-    // =======================
-
+    // POST: api/vehicles
     [HttpPost]
-    public async Task<IActionResult> CreateVehicle(
-        [FromBody] CreateVehicleDto dto)
+    public async Task<IActionResult> Create([FromBody] CreateVehicleRequest request)
     {
-        var tenantId = User.GetTenantId();
+        // Validação simples
+        if (await _context.Vehicles.AnyAsync(v => v.Imei == request.Imei))
+        {
+            return BadRequest("Já existe um veículo com este IMEI.");
+        }
 
-        var vehicle = new Vehicle(tenantId, dto.Plate);
+        var vehicle = new Vehicle
+        {
+            Id = Guid.NewGuid(),
+            Name = request.Name,
+            LicensePlate = request.LicensePlate,
+            Imei = request.Imei,
+            TrackerModel = request.TrackerModel ?? "ST310U",
+            IsActive = true
+        };
 
         _context.Vehicles.Add(vehicle);
         await _context.SaveChangesAsync();
 
-        return Ok(new
-        {
-            vehicle.Id,
-            vehicle.Plate
-        });
+        return CreatedAtAction(nameof(GetAll), new { id = vehicle.Id }, vehicle);
     }
 
-    // =======================
-    // UPDATE
-    // =======================
-
-    [HttpPut("{id:guid}")]
-    public async Task<IActionResult> UpdateVehicle(
-        Guid id,
-        [FromBody] CreateVehicleDto dto)
+    // DELETE: api/vehicles/{id}
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(Guid id)
     {
-        var tenantId = User.GetTenantId();
+        var vehicle = await _context.Vehicles.FindAsync(id);
+        if (vehicle == null) return NotFound();
 
-        var vehicle = await _context.Vehicles
-            .FirstOrDefaultAsync(v =>
-                v.Id == id &&
-                v.TenantId == tenantId &&
-                v.IsActive);
-
-        if (vehicle == null)
-            return NotFound();
-
-        vehicle.UpdatePlate(dto.Plate);
-
-        await _context.SaveChangesAsync();
-
-        return Ok(new
-        {
-            vehicle.Id,
-            vehicle.Plate
-        });
-    }
-
-    // =======================
-    // DELETE (SOFT)
-    // =======================
-
-    [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> DeleteVehicle(Guid id)
-    {
-        var tenantId = User.GetTenantId();
-
-        var vehicle = await _context.Vehicles
-            .FirstOrDefaultAsync(v =>
-                v.Id == id &&
-                v.TenantId == tenantId &&
-                v.IsActive);
-
-        if (vehicle == null)
-            return NotFound();
-
-        vehicle.Deactivate();
-
+        _context.Vehicles.Remove(vehicle);
         await _context.SaveChangesAsync();
 
         return NoContent();
     }
 }
 
-// =======================
-// DTO
-// =======================
-
-public class CreateVehicleDto
+// DTO Simples para receber os dados
+public class CreateVehicleRequest
 {
-    public string Plate { get; set; } = null!;
+    public string Name { get; set; } = string.Empty;
+    public string LicensePlate { get; set; } = string.Empty;
+    public string Imei { get; set; } = string.Empty;
+    public string? TrackerModel { get; set; }
 }

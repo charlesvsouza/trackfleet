@@ -1,33 +1,17 @@
-// src/routes/PrivateRoute.tsx
+import React from 'react';
+import { Navigate, Outlet } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext'; // Confirme se o caminho está certo
 
-import { Navigate, useLocation } from "react-router-dom";
-import { ReactNode } from "react";
-import { useAuth } from "../contexts/AuthContext";
+const PrivateRoute = () => {
+  const { isAuthenticated, isLoading } = useAuth();
 
-interface PrivateRouteProps {
-  children: ReactNode;
-}
-
-export function PrivateRoute({ children }: PrivateRouteProps) {
-  const { isAuthenticated, loading } = useAuth();
-  const location = useLocation();
-
-  // 🔄 Aguarda o AuthContext inicializar
-  if (loading) {
-    return <p style={{ padding: 20 }}>Verificando autenticação...</p>;
+  if (isLoading) {
+    return <div>Carregando...</div>; // Ou um Spinner bonito
   }
 
-  // 🔒 Não autenticado → login
-  if (!isAuthenticated) {
-    return (
-      <Navigate
-        to="/login"
-        replace
-        state={{ from: location }}
-      />
-    );
-  }
+  // Se logado, mostra o conteúdo (Outlet). Se não, manda pro login.
+  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
+};
 
-  // ✅ Autenticado → renderiza rota protegida
-  return <>{children}</>;
-}
+// 🔥 ADICIONE ISTO NO FINAL PARA CORRIGIR O ERRO
+export default PrivateRoute;

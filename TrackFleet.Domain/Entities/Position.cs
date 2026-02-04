@@ -1,23 +1,13 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+﻿namespace TrackFleet.Domain.Entities;
 
-namespace TrackFleet.Domain.Entities;
-
-// Mapeia para a tabela "Positions" que criamos no banco
-[Table("Positions")]
-public class VehicleLocation
+public class Position
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-
     public Guid VehicleId { get; set; }
-    // public Vehicle? Vehicle { get; set; } // Opcional: Navegação
-
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public double Speed { get; set; }
     public bool Ignition { get; set; }
-
-    // Esta é a propriedade que o Controller estava procurando
     public DateTime Timestamp { get; set; }
-
     public DateTime ReceivedAt { get; set; } = DateTime.UtcNow;
 }

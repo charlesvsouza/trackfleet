@@ -1,65 +1,24 @@
-﻿namespace TrackFleet.Domain.Entities;
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace TrackFleet.Domain.Entities;
 
 public class Vehicle
 {
-    // =======================
-    // PROPERTIES
-    // =======================
+    public Guid Id { get; set; } = Guid.NewGuid();
 
-    public Guid Id { get; private set; }
-    public Guid TenantId { get; private set; }
+    [Required]
+    public string Name { get; set; } = string.Empty;
 
-    public string Plate { get; private set; } = null!;
+    public string? LicensePlate { get; set; } // O "?" permite nulos
 
-    public bool IsActive { get; private set; }
+    [Required]
+    public string Imei { get; set; } = string.Empty;
 
-    public DateTime CreatedAtUtc { get; private set; }
+    public string TrackerModel { get; set; } = "ST310U";
 
-    // 🔴 PROPRIEDADE QUE ESTAVA FALTANDO
-    public DateTime LastUpdateUtc { get; private set; }
+    public bool IsActive { get; set; } = true;
 
-    // =======================
-    // EF CORE
-    // =======================
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    protected Vehicle() { }
-
-    // =======================
-    // CONSTRUCTOR
-    // =======================
-
-    public Vehicle(Guid tenantId, string plate)
-    {
-        Id = Guid.NewGuid();
-        TenantId = tenantId;
-        Plate = plate;
-
-        IsActive = true;
-        CreatedAtUtc = DateTime.UtcNow;
-        LastUpdateUtc = DateTime.UtcNow;
-    }
-
-    // =======================
-    // BEHAVIOR
-    // =======================
-
-    public void UpdatePlate(string plate)
-    {
-        if (string.IsNullOrWhiteSpace(plate))
-            throw new ArgumentException("Placa inválida.");
-
-        Plate = plate;
-        Touch();
-    }
-
-    public void Deactivate()
-    {
-        IsActive = false;
-        Touch();
-    }
-
-    private void Touch()
-    {
-        LastUpdateUtc = DateTime.UtcNow;
-    }
+    // REMOVIDO ClientId para evitar erro de banco
 }

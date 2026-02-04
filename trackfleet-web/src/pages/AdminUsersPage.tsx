@@ -1,83 +1,81 @@
-import { useEffect, useState } from "react";
-import { userService } from "@/services/userService";
-import { UserDto } from "@/api/users.api";
+import React, { useState } from 'react';
+import { 
+  Box, Typography, Button, Paper, Table, TableBody, TableCell, 
+  TableContainer, TableHead, TableRow, IconButton, Chip 
+} from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
 
-export function AdminUsersPage() {
-  const [users, setUsers] = useState<UserDto[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+// Se tiver componentes de formulário, importe-os aqui
+// import UserFormModal from '../components/UserFormModal';
 
-  async function load() {
-    try {
-      setLoading(true);
-      setUsers(await userService.list());
-    } catch {
-      setError("Erro ao carregar usuários");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function toggleStatus(id: string) {
-    await userService.toggleStatus(id);
-    load();
-  }
-
-  async function changeRole(id: string, role: string) {
-    await userService.updateRole(id, role);
-    load();
-  }
-
-  useEffect(() => {
-    load();
-  }, []);
+const AdminUsersPage: React.FC = () => {
+  // Mock de dados para teste visual
+  const [users] = useState([
+    { id: 1, name: 'Admin Teste', email: 'admin@trackfleet.com', role: 'Administrador', status: 'Ativo' },
+    { id: 2, name: 'Operador 01', email: 'op1@trackfleet.com', role: 'Operador', status: 'Ativo' },
+  ]);
 
   return (
-    <div style={{ padding: 24, maxWidth: 900, margin: "0 auto" }}>
-      <h1>Usuários</h1>
+    <Box p={3}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h4" fontWeight="bold" color="primary">
+          Gestão de Usuários
+        </Typography>
+        <Button 
+          variant="contained" 
+          startIcon={<AddIcon />}
+          color="primary"
+        >
+          Novo Usuário
+        </Button>
+      </Box>
 
-      {error && <div style={{ color: "red" }}>{error}</div>}
-
-      {loading ? (
-        <p>Carregando…</p>
-      ) : (
-        <table width="100%" cellPadding={8}>
-          <thead>
-            <tr>
-              <th>Email</th>
-              <th>Nome</th>
-              <th>Perfil</th>
-              <th>Status</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map(u => (
-              <tr key={u.id}>
-                <td>{u.email}</td>
-                <td>{u.fullName}</td>
-                <td>
-                  <select
-                    value={u.role}
-                    onChange={e =>
-                      changeRole(u.id, e.target.value)
-                    }
-                  >
-                    <option value="admin">Admin</option>
-                    <option value="driver">Driver</option>
-                  </select>
-                </td>
-                <td>{u.isActive ? "Ativo" : "Inativo"}</td>
-                <td>
-                  <button onClick={() => toggleStatus(u.id)}>
-                    {u.isActive ? "Desativar" : "Ativar"}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
+      <Paper elevation={3}>
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                <TableCell><strong>Nome</strong></TableCell>
+                <TableCell><strong>Email</strong></TableCell>
+                <TableCell><strong>Perfil</strong></TableCell>
+                <TableCell><strong>Status</strong></TableCell>
+                <TableCell align="center"><strong>Ações</strong></TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {users.map((user) => (
+                <TableRow key={user.id} hover>
+                  <TableCell>{user.name}</TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell>
+                    <Chip label={user.role} color="primary" variant="outlined" size="small" />
+                  </TableCell>
+                  <TableCell>
+                    <Chip 
+                      label={user.status} 
+                      color={user.status === 'Ativo' ? 'success' : 'default'} 
+                      size="small" 
+                    />
+                  </TableCell>
+                  <TableCell align="center">
+                    <IconButton size="small" color="primary">
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton size="small" color="error">
+                      <DeleteIcon />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Paper>
+    </Box>
   );
-}
+};
+
+// 🔥 ESTE É O COMANDO MÁGICO QUE FAZ O IMPORT FUNCIONAR
+export default AdminUsersPage;

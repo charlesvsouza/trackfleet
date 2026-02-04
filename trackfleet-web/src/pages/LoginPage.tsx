@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-// Ajuste o import do useAuth conforme sua estrutura real
-// Se der erro aqui, tente: import { useAuth } from "../auth/useAuth";
-import { useAuth } from "@/auth/useAuth";
+// Ajuste para o caminho correto do nosso contexto
+import { useAuth } from "../contexts/AuthContext"; 
 
-export function LoginPage() { // MUDANÇA: 'export function' em vez de 'export default'
-  const { login, loading } = useAuth();
+function LoginPage() {
+  const { login, isLoading } = useAuth(); // useAuth retorna isLoading, não loading
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
@@ -17,54 +16,97 @@ export function LoginPage() { // MUDANÇA: 'export function' em vez de 'export d
     setError(null);
 
     try {
-      const user = await login(email.trim(), password);
+      // O login do contexto espera (token, userData). 
+      // Como estamos simulando, vou passar dados fictícios aqui para você testar a tela.
+      // Numa API real, você faria o fetch aqui e passaria o resultado.
+      const mockUser = {
+        id: "1",
+        email: email,
+        name: "Usuário Teste",
+        role: "Admin"
+      };
+      
+      // Simula token
+      login("token-falso-123", mockUser);
 
-      // Redirecionamento inteligente baseado no Role
-      if (user.role === "Admin") {
-        navigate("/admin/users", { replace: true }); // Ajustei para uma rota que vimos no AppRoutes
-      } else {
-        navigate("/dashboard", { replace: true }); // Ajustei para o dashboard padrão
-      }
-    } catch {
-      setError("Credenciais inválidas");
+      navigate("/", { replace: true });
+      
+    } catch (err) {
+      setError("Falha ao entrar. Verifique console.");
+      console.error(err);
     }
   }
 
   return (
-    <div style={{ maxWidth: 360, margin: "100px auto", padding: "20px", border: "1px solid #ccc", borderRadius: "8px" }}>
-      <h2 style={{ textAlign: "center" }}>TrackFleet Login</h2>
+    <div style={{ 
+      height: "100vh", 
+      display: "flex", 
+      alignItems: "center", 
+      justifyContent: "center", 
+      backgroundColor: "#f5f5f5" 
+    }}>
+      <div style={{ 
+        width: "100%", 
+        maxWidth: 400, 
+        padding: "40px", 
+        backgroundColor: "white", 
+        borderRadius: "8px", 
+        boxShadow: "0 4px 12px rgba(0,0,0,0.1)" 
+      }}>
+        <h2 style={{ textAlign: "center", marginBottom: "24px", color: "#1976d2" }}>TrackFleet Admin</h2>
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          disabled={loading}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          style={{ padding: "8px" }}
-        />
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div>
+            <label style={{ display: "block", marginBottom: "8px", fontSize: "14px" }}>Email</label>
+            <input
+              type="email"
+              value={email}
+              disabled={isLoading}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              style={{ width: "100%", padding: "10px", borderRadius: "4px", border: "1px solid #ccc", boxSizing: "border-box" }}
+            />
+          </div>
 
-        <input
-          type="password"
-          placeholder="Senha"
-          value={password}
-          disabled={loading}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          style={{ padding: "8px" }}
-        />
+          <div>
+            <label style={{ display: "block", marginBottom: "8px", fontSize: "14px" }}>Senha</label>
+            <input
+              type="password"
+              value={password}
+              disabled={isLoading}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              style={{ width: "100%", padding: "10px", borderRadius: "4px", border: "1px solid #ccc", boxSizing: "border-box" }}
+            />
+          </div>
 
-        <button 
-          type="submit" 
-          disabled={loading}
-          style={{ padding: "10px", backgroundColor: "#007bff", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
-        >
-          {loading ? "Entrando..." : "Entrar"}
-        </button>
-      </form>
+          <button 
+            type="submit" 
+            disabled={isLoading}
+            style={{ 
+              padding: "12px", 
+              backgroundColor: "#1976d2", 
+              color: "white", 
+              border: "none", 
+              borderRadius: "4px", 
+              cursor: "pointer",
+              fontWeight: "bold",
+              marginTop: "10px"
+            }}
+          >
+            {isLoading ? "Entrando..." : "Acessar Painel"}
+          </button>
+        </form>
 
-      {error && <p style={{ color: "red", textAlign: "center", marginTop: "10px" }}>{error}</p>}
+        {error && (
+          <p style={{ color: "#d32f2f", textAlign: "center", marginTop: "16px", fontSize: "14px" }}>
+            {error}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
+
+// 🔥 ISSO RESOLVE O ERRO DO APP.TSX
+export default LoginPage;

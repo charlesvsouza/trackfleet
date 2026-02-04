@@ -1,15 +1,13 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
-// Ajuste o caminho para onde salvamos o arquivo no passo anterior
-import { AuthProvider } from "./contexts/AuthContext"; 
-import App from "./App";
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import { BrowserRouter } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext'; // Importe o Provider
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>
-      {/* O AuthProvider deve ficar aqui, envolvendo toda a aplicação UMA VEZ */}
-      <AuthProvider>
+      <AuthProvider> {/* <--- O Provider deve estar aqui */}
         <App />
       </AuthProvider>
     </BrowserRouter>

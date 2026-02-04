@@ -8,9 +8,13 @@ public class VehicleLocationConfiguration : IEntityTypeConfiguration<VehicleLoca
 {
     public void Configure(EntityTypeBuilder<VehicleLocation> builder)
     {
-        builder.ToTable("VehicleLocations");
+        // Mapeia para a tabela "Positions"
+        builder.ToTable("Positions");
 
         builder.HasKey(x => x.Id);
+
+        builder.Property(x => x.VehicleId)
+            .IsRequired();
 
         builder.Property(x => x.Latitude)
             .IsRequired();
@@ -18,13 +22,15 @@ public class VehicleLocationConfiguration : IEntityTypeConfiguration<VehicleLoca
         builder.Property(x => x.Longitude)
             .IsRequired();
 
-        builder.Property(x => x.RecordedAtUtc)
+        // Aqui estava o erro: mudamos de RecordedAtUtc para Timestamp
+        builder.Property(x => x.Timestamp)
             .IsRequired();
 
-        builder.HasIndex(x => new
-        {
-            x.VehicleId,
-            x.RecordedAtUtc
-        });
+        builder.Property(x => x.ReceivedAt)
+            .HasDefaultValueSql("NOW()");
+
+        // Índice composto para buscar histórico rápido
+        builder.HasIndex(x => new { x.VehicleId, x.Timestamp })
+            .HasDatabaseName("IX_Positions_VehicleId_Timestamp");
     }
 }

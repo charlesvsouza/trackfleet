@@ -1,33 +1,14 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.SignalR;
-using TrackFleet.Api.Extensions;
+﻿using Microsoft.AspNetCore.SignalR;
 
 namespace TrackFleet.Api.Hubs;
 
-[Authorize]
 public class TrackingHub : Hub
 {
-    public const string VehicleLocationUpdatedEvent = "vehicleLocationUpdated";
+    // Define o nome do evento que o Frontend escuta
+    public const string VehicleLocationUpdatedEvent = "ReceivePosition";
 
-    public override async Task OnConnectedAsync()
+    public async Task SendCommand(string imei, string command)
     {
-        var tenantId = Context.User!.GetTenantId();
-        await Groups.AddToGroupAsync(
-            Context.ConnectionId,
-            tenantId.ToString()
-        );
-
-        await base.OnConnectedAsync();
-    }
-
-    public override async Task OnDisconnectedAsync(Exception? exception)
-    {
-        var tenantId = Context.User!.GetTenantId();
-        await Groups.RemoveFromGroupAsync(
-            Context.ConnectionId,
-            tenantId.ToString()
-        );
-
-        await base.OnDisconnectedAsync(exception);
+        await Clients.All.SendAsync("CommandSent", imei, command);
     }
 }

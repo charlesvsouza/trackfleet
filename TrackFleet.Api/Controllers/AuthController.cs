@@ -31,10 +31,11 @@ public class AuthController : ControllerBase
             .FirstOrDefaultAsync(u => u.Email.ToLower() == request.Email.ToLower());
 
         if (user is null)
-            return Unauthorized();
+            return Unauthorized("Usuário não encontrado.");
 
+        // Verifica se a senha bate com o Hash do banco
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-            return Unauthorized();
+            return Unauthorized("Senha incorreta.");
 
         var (token, expiresAtUtc) = _jwtTokenGenerator.Generate(user);
 
@@ -49,6 +50,16 @@ public class AuthController : ControllerBase
                 Role = user.Role
             }
         });
+    }
+
+    // --- UTILITÁRIO PARA GERAR SENHA (Use apenas para criar usuários manualmente) ---
+    [AllowAnonymous]
+    [HttpGet("gen-hash/{password}")]
+    public IActionResult GenerateHash(string password)
+    {
+        // Gera o Hash compatível com o método Login
+        var hash = BCrypt.Net.BCrypt.HashPassword(password);
+        return Ok(new { Password = password, Hash = hash });
     }
 }
 

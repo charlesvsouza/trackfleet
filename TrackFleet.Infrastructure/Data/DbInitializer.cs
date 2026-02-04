@@ -1,48 +1,31 @@
-﻿using Microsoft.EntityFrameworkCore;
-using TrackFleet.Domain.Entities;
+﻿using TrackFleet.Domain.Entities;
 
 namespace TrackFleet.Infrastructure.Data;
 
 public static class DbInitializer
 {
-    public static async Task InitializeAsync(TrackFleetDbContext context)
+    public static void Initialize(TrackFleetDbContext context)
     {
-        await context.Database.MigrateAsync();
+        // Garante que o banco existe
+        context.Database.EnsureCreated();
 
-        // ==========================
-        // TENANT
-        // ==========================
-        var tenant = await context.Tenants.FirstOrDefaultAsync();
-
-        if (tenant == null)
+        // Se já tem usuário, não faz nada
+        if (context.Users.Any())
         {
-            tenant = Tenant.Create("TrackFleet Default");
-            context.Tenants.Add(tenant);
-            await context.SaveChangesAsync();
+            return;
         }
 
-        // ==========================
-        // ADMIN USER
-        // ==========================
-        const string adminEmail = "admin@trackfleet.com";
+        // Cria o Admin Padrão
+        var admin = new User(
+            "admin@trackfleet.com", // Email
+            "Admin Master",         // Nome
+            "Admin"                 // Role
+        );
 
-        var adminExists = await context.Users
-            .IgnoreQueryFilters()
-            .AnyAsync(u => u.Email == adminEmail);
+        // Define a senha (o método gera o hash internamente)
+        admin.SetPassword("admin123");
 
-        if (!adminExists)
-        {
-            var admin = new User(
-                tenant.Id,
-                email: adminEmail,
-                fullName: "Administrador",
-                role: "Admin"
-            );
-
-            admin.SetPassword("123456");
-
-            context.Users.Add(admin);
-            await context.SaveChangesAsync();
-        }
+        context.Users.Add(admin);
+        context.SaveChanges();
     }
 }
